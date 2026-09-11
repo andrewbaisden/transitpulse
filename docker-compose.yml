@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: transitpulse
+      POSTGRES_PASSWORD: transitpulse
+      POSTGRES_DB: transitpulse
+    ports:
+      - "5435:5432"
+    volumes:
+      - transitpulse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transitpulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Redis is intentionally not defined here. It has no real use case until
+  # Phase 10 (background jobs / realtime sync) — see DECISIONS.md ADR-002.
+
+volumes:
+  transitpulse_pgdata:
