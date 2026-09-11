@@ -1,0 +1,25 @@
+[
+  {
+    "id": "central",
+    "name": "Central",
+    "modeName": "tube",
+    "lineStatuses": [
+      {
+        "statusSeverityDescription": "Minor Delays",
+        "reason": "Minor delays due to an earlier signal failure at Leytonstone.",
+        "validityPeriods": [{ "fromDate": "2026-09-11T08:15:00Z" }]
+      }
+    ]
+  },
+  {
+    "id": "jubilee",
+    "name": "Jubilee",
+    "modeName": "tube",
+    "lineStatuses": [
+      {
+        "statusSeverityDescription": "Good Service",
+        "validityPeriods": []
+      }
+    ]
+  }
+]

@@ -38,15 +38,38 @@ const MODE_EXTERNAL_ID_MAP: Record<string, TransportMode> = {
   tram: "TRAM",
 };
 
+// The demo fixtures only exercise a handful of these. The rest are TfL's
+// real status vocabulary for the rail modes TflProvider targets (Phase 4) —
+// confirmed against /Line/Meta/Severity, not guessed — bucketed into our
+// coarser 7-value domain enum. See DECISIONS.md ADR-013 for the judgment
+// calls (e.g. "Closed"/"Not Running" -> SUSPENDED, "No Step Free Access" ->
+// GOOD_SERVICE) — the original TfL label is preserved verbatim in
+// `description`, so nothing is lost, only bucketed.
 const STATUS_SEVERITY_LABEL_MAP: Record<string, ServiceStatusLevel> = {
   "good service": "GOOD_SERVICE",
+  "no issues": "GOOD_SERVICE",
+  "no exceptional delays": "GOOD_SERVICE",
+  information: "GOOD_SERVICE",
+  "no step free access": "GOOD_SERVICE",
   "minor delays": "MINOR_DELAYS",
+  "reduced service": "MINOR_DELAYS",
+  "change of frequency": "MINOR_DELAYS",
+  diverted: "MINOR_DELAYS",
+  "exit only": "MINOR_DELAYS",
+  "issues reported": "MINOR_DELAYS",
   "severe delays": "SEVERE_DELAYS",
   "part suspended": "PART_CLOSURE",
   "part closure": "PART_CLOSURE",
-  suspended: "SUSPENDED",
+  "part closed": "PART_CLOSURE",
   "planned closure": "PART_CLOSURE",
+  suspended: "SUSPENDED",
+  closed: "SUSPENDED",
+  closure: "SUSPENDED",
+  "service closed": "SUSPENDED",
+  "not running": "SUSPENDED",
+  "no service": "SUSPENDED",
   "special service": "SPECIAL_SERVICE",
+  "bus service": "SPECIAL_SERVICE",
 };
 
 export function normalizeLine(providerLine: ProviderLine, sourceName: string): DomainLine {

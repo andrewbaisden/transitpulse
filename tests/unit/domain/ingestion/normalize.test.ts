@@ -92,4 +92,22 @@ describe("normalizeServiceStatus", () => {
 
     expect(() => normalizeServiceStatus(providerStatus, "demo")).toThrow(NormalizationError);
   });
+
+  // Real TfL severities beyond the demo vocabulary (see ADR-013) — locking
+  // in the bucketing decisions so a future edit to the map is deliberate.
+  it.each([
+    ["Closed", "SUSPENDED"],
+    ["Not Running", "SUSPENDED"],
+    ["Reduced Service", "MINOR_DELAYS"],
+    ["No Step Free Access", "GOOD_SERVICE"],
+    ["Bus Service", "SPECIAL_SERVICE"],
+  ] as const)("maps TfL severity %s to %s", (label, expected) => {
+    const providerStatus: ProviderServiceStatus = {
+      lineExternalId: "central",
+      statusSeverityLabel: label,
+      recordedAt: "2026-09-11T08:15:00+01:00",
+    };
+
+    expect(normalizeServiceStatus(providerStatus, "tfl").status).toBe(expected);
+  });
 });

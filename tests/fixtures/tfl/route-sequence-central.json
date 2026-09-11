@@ -1,0 +1,17 @@
+{
+  "stopPointSequences": [
+    {
+      "stopPoint": [
+        {
+          "id": "stratford",
+          "name": "Stratford",
+          "lat": 51.5416,
+          "lon": -0.0042,
+          "parentId": "HUBSTR"
+        },
+        { "id": "liverpool-street", "name": "Liverpool Street", "lat": 51.5178, "lon": -0.0823 },
+        { "id": "bank", "name": "Bank", "lat": 51.5133, "lon": -0.0886 }
+      ]
+    }
+  ]
+}

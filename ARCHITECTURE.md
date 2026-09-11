@@ -2,15 +2,16 @@
 
 ## Status
 
-This describes the system as built through **Phase 3** (static network
-explorer over demo data), plus the target shape for later phases so the
-current design can be checked against where it needs to go. See
-[Roadmap](#roadmap-phases-4-15) for what's *not* built yet.
+This describes the system as built through **Phase 4** (static network
+explorer over demo data, plus a real `TflProvider` reachable via
+`pnpm db:sync:tfl` — see DECISIONS.md ADR-013), plus the target shape for
+later phases so the current design can be checked against where it needs
+to go. See [Roadmap](#roadmap-phases-4-15) for what's *not* built yet.
 
 ## System overview
 
 ```text
-Transit Provider (DemoProvider today; TfL / GTFS-RT / Simulation later)
+Transit Provider (DemoProvider + TflProvider today; GTFS-RT / Simulation later)
         │
         ▼
 Zod validation (at the provider boundary — providers/types.ts)
@@ -161,7 +162,7 @@ suited to long-lived queue consumers.
 
 | Phase | Adds |
 |---|---|
-| 4 | `TflProvider` implementing `TransitProvider` against the real TfL Unified API |
+| 4 | ✅ `TflProvider` implementing `TransitProvider` against the real TfL Unified API |
 | 5 | `getArrivals`, arrival boards, provenance on dynamic/observed data |
 | 6 | MapLibre/Mapbox map layer over existing `lat`/`lon` |
 | 7 | Historical sampling of real observations (delay, arrival error) |

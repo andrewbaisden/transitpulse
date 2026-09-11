@@ -220,6 +220,81 @@ actually wanted.
 
 ---
 
+## ADR-013: TflProvider (Phase 4) scoping decisions
+
+**Context.** `TflProvider` is the first real `TransitProvider` implementation,
+against TfL's live Unified API. Several shapes needed judgment calls the
+demo fixtures never forced.
+
+**Decisions.**
+
+- **Rail modes only, bus excluded, configurable.** Default modes are
+  `tube, overground, elizabeth-line, dlr, tram`. TfL's bus network is
+  ~700 routes / thousands of stops — it would dwarf the rail network this
+  phase targets and isn't needed by any Phase 1-9 feature. **Revisit
+  trigger**: a feature that specifically needs bus data.
+- **No line colour.** TfL's API doesn't return branding colour for a line.
+  Rather than hardcode the well-known hex values (risking staleness after
+  a rebrand, as happened to Overground in 2024 — it now has six named
+  lines: Liberty, Lioness, Mildmay, Suffragette, Weaver, Windrush, each its
+  own `Line` row), `ProviderLine.color` is left unset for every TfL line.
+- **Stop sequence via `/Line/{id}/Route/Sequence/outbound`, not
+  `/Line/{id}/StopPoints`.** The latter doesn't guarantee stop order; the
+  former returns each line's branches as ordered arrays, used directly as
+  `LineStop.sequence`. Only `outbound` is fetched (not `inbound`) — for the
+  standard two-way lines this project ingests, outbound already covers the
+  full physical route including every branch. Sequence numbers restart per
+  branch rather than forming one global order across a branched line's
+  branches — acceptable since `sequence` is display ordering, not a
+  reliability input.
+- **Hub resolution via individual, concurrency-limited `/StopPoint/{id}`
+  lookups, not the batched `/StopPoint/{ids}` form.** A station that's
+  part of a hub (`stopType: "TransportInterchange"` in TfL's model)
+  appears in `Route/Sequence` only as a `parentId` reference, not as its
+  own record — every distinct `parentId` seen needs its own `HUB`-type
+  `Stop` row, otherwise `ingestStops` throws `IngestionError` trying to
+  resolve a parent that doesn't exist as a row (see ADR-003's hierarchy).
+  Two problems ruled out the obvious batched approach, found by testing
+  against the live API while building this (not from documentation): (1)
+  `/StopPoint/{ids}` 400s once too many ids are joined — the cutoff is
+  undocumented but sits somewhere between 30 and 40; (2) more importantly,
+  looking up a *station-level* id that's part of a hub (e.g.
+  `910GBUSHEY`, Bushey mainline station) returns the hub's own canonical
+  id in the response body (`HUBBSH`), not the id that was requested — and
+  a batch response's entries can't be reliably matched back to which
+  requested id produced them. So each hub id is looked up individually
+  (10 at a time) and stored under the id that was actually requested,
+  ignoring whatever id the response claims for itself. No `PLATFORM`-level
+  granularity is modelled in Phase 4 (that needs yet another per-stop
+  call) — every TfL stop ingested this phase is `STATION` or `HUB`.
+- **Status severity mapping bucketed from TfL's real ~21-value vocabulary
+  (confirmed via `/Line/Meta/Severity` for the five configured modes, not
+  guessed) into the existing 7-value `ServiceStatusLevel` enum** — e.g.
+  `"Closed"`/`"Not Running"`/`"No Service"` -> `SUSPENDED`, `"No Step Free
+  Access"`/`"Information"`/`"No Issues"` -> `GOOD_SERVICE`, `"Bus
+  Service"` -> `SPECIAL_SERVICE`. The original TfL label is preserved
+  verbatim in `ServiceStatus.description`'s source text (via `reason`), so
+  the bucketing loses no information, only precision in the stored enum.
+  `normalizeServiceStatus` still throws `NormalizationError` (not a silent
+  `UNKNOWN` fallback) for any label outside this known vocabulary — a
+  genuinely new TfL status should fail ingestion loudly, not be guessed at.
+- **`recordedAt` uses the disruption's `validityPeriods[0].fromDate`** when
+  present (when the status actually became true), falling back to the
+  sync's own request time only for statuses with no validity period (e.g.
+  "Good Service", which has none) — never a fabricated timestamp.
+
+**Consequences.** `pnpm db:sync:tfl` (mirroring `prisma/seed.ts`, per
+AGENTS.md's provider-boundary rule) ingests the real London rail network
+through the exact same `ingestLines`/`ingestStops`/`ingestServiceStatus`
+pipeline the demo data uses, unchanged. `TflProvider`'s own unit test
+(`tests/unit/providers/tfl-provider.test.ts`) mocks `fetch` against fixtures
+shaped like verified real API responses rather than hitting the network,
+so it's fast and doesn't require a key in CI.
+
+**Status.** Accepted.
+
+---
+
 ## ADR-013: `prisma init` scaffolds AI-agent "skills" directories — removed
 
 **Context.** Prisma 7's `prisma init` automatically created

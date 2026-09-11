@@ -4,10 +4,12 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–3 of 15.** This is a static network explorer
-> over seeded demo data — no live TfL integration, map, reliability
-> analytics, crowding, or prediction yet. See [Roadmap](#roadmap) below and
-> [ARCHITECTURE.md](./ARCHITECTURE.md) for what's built vs planned.
+> **Current status: Phases 1–4 of 15.** This is a static network explorer,
+> now with a real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded
+> demo data — no live arrival boards, map, reliability analytics, crowding,
+> or prediction yet, and the UI itself still just reads whatever's in
+> Postgres (see [Roadmap](#roadmap) below and
+> [ARCHITECTURE.md](./ARCHITECTURE.md) for what's built vs planned).
 
 ## What this is (and isn't)
 
@@ -101,10 +103,17 @@ Phases 1–3 (this repo, in depth) build a static network explorer:
 foundation/tooling, the internal transit domain + provider abstraction over
 demo data, and a basic UI (network overview, lines, stations, search).
 
-Phases 4–15 are architected for but not yet built: TfL integration, live
-arrivals, an interactive map, historical reliability, crowding/occupancy,
-realtime infrastructure, anomaly detection, arrival prediction, a
-simulation provider, personalisation, and production observability. See
+Phase 4 adds `TflProvider` (`src/server/providers/tfl/`), a real
+`TransitProvider` implementation against the live TfL Unified API, and
+`pnpm db:sync:tfl` to run it through the same ingestion pipeline the demo
+data uses. See DECISIONS.md ADR-013 for the scoping decisions. The UI
+itself isn't wired to prefer or select a source yet — see the caution note
+in `prisma/sync-tfl.ts`.
+
+Phases 5–15 are architected for but not yet built: live arrivals, an
+interactive map, historical reliability, crowding/occupancy, realtime
+infrastructure, anomaly detection, arrival prediction, a simulation
+provider, personalisation, and production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

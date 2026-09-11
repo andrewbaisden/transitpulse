@@ -1,0 +1,16 @@
+{
+  "stopPointSequences": [
+    {
+      "stopPoint": [
+        {
+          "id": "stratford",
+          "name": "Stratford",
+          "lat": 51.5416,
+          "lon": -0.0042,
+          "parentId": "HUBSTR"
+        },
+        { "id": "canada-water", "name": "Canada Water", "lat": 51.498, "lon": -0.05 }
+      ]
+    }
+  ]
+}
