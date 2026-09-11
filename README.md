@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TransitPulse
 
-## Getting Started
+Real-time public transport intelligence for London — reliability, crowding,
+and disruption context on top of live service data, not just "next train in
+4 minutes."
 
-First, run the development server:
+> **Current status: Phases 1–3 of 15.** This is a static network explorer
+> over seeded demo data — no live TfL integration, map, reliability
+> analytics, crowding, or prediction yet. See [Roadmap](#roadmap) below and
+> [ARCHITECTURE.md](./ARCHITECTURE.md) for what's built vs planned.
+
+## What this is (and isn't)
+
+TransitPulse is being built as a portfolio-grade, AI-assisted engineering
+project demonstrating a real provider-abstracted data platform: external
+ingestion, a provider-neutral domain model, geospatial/realtime features,
+historical analytics, and production engineering — not a Citymapper clone,
+not a journey planner, and not a system that fabricates transport data it
+doesn't actually have.
+
+Data provenance is a first-class concern throughout: every line, stop, and
+status row is tagged with where it came from (`source` + `externalRef`), so
+demo data, TfL data, and simulated data are never confused with each other.
+
+## Data sources today
+
+**Demo/fixture data only** (`tests/fixtures/demo/*.json`), covering a small
+realistic subset of the London network — Central, Jubilee, and Elizabeth
+lines; Stratford, Liverpool Street, Bond Street, and a handful of other
+stations, including one station/platform hierarchy pair. This is clearly
+demo data, not live London transport status — see
+[ARCHITECTURE.md](./ARCHITECTURE.md) for how live TfL data will plug into
+the same pipeline in a later phase without a domain rewrite.
+
+## Tech stack
+
+| Area | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19, TypeScript (strict) |
+| Styling | Tailwind CSS v4, shadcn/ui (Radix) |
+| Validation | Zod (provider boundary + env) |
+| Client state | Zustand (reserved — no UI state complex enough to need it yet) |
+| Server-fetched state | TanStack Query (search-as-you-type only) |
+| Forms | React Hook Form (installed for the fixed target stack; unwired until a real form exists — see DECISIONS.md) |
+| Database | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`) |
+| Lint/format | Biome |
+| Git hooks | Husky + lint-staged |
+| Testing | Vitest, React Testing Library, Playwright |
+| CI | GitHub Actions |
+
+Redis, BullMQ, MapLibre/Mapbox, and an auth provider are **not** installed
+yet — they have no real use case until later phases (see
+[DECISIONS.md](./DECISIONS.md)).
+
+## Local setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+docker compose up -d          # Postgres on localhost:5435
+pnpm prisma migrate dev
+pnpm db:seed                  # runs the demo provider through the real ingestion pipeline
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env` first if it doesn't already exist locally.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Required | Purpose |
+|---|---|---|
+| `DATABASE_URL` | yes | Postgres connection string |
+| `NODE_ENV` | yes (defaults to `development`) | |
+| `NEXT_PUBLIC_APP_NAME` | yes | Display name, client-exposed |
 
-## Learn More
+TfL credentials (`TFL_APP_ID`, `TFL_APP_KEY`) aren't needed yet — Phase 4.
 
-To learn more about Next.js, take a look at the following resources:
+### Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Single Postgres instance via `docker-compose.yml`, port **5435** (not 5432,
+to avoid colliding with other local Postgres instances). Schema in
+`prisma/schema.prisma`; see [ARCHITECTURE.md](./ARCHITECTURE.md) for the
+data model and [DECISIONS.md](./DECISIONS.md) for why it's shaped this way.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+A second database, `transitpulse_test`, is used by the integration tests —
+see [TESTING.md](./TESTING.md).
 
-## Deploy on Vercel
+### Testing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test           # Vitest: unit + component tests
+pnpm test:e2e        # Playwright (requires the app built/running — see playwright.config.ts)
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Full details in [TESTING.md](./TESTING.md).
+
+## Roadmap
+
+Phases 1–3 (this repo, in depth) build a static network explorer:
+foundation/tooling, the internal transit domain + provider abstraction over
+demo data, and a basic UI (network overview, lines, stations, search).
+
+Phases 4–15 are architected for but not yet built: TfL integration, live
+arrivals, an interactive map, historical reliability, crowding/occupancy,
+realtime infrastructure, anomaly detection, arrival prediction, a
+simulation provider, personalisation, and production observability. See
+[ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
+[DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
+them.
+
+## Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — system design, data model, roadmap
+- [DECISIONS.md](./DECISIONS.md) — ADR log
+- [TESTING.md](./TESTING.md) — test strategy and how to run each suite
+- [AGENTS.md](./AGENTS.md) — conventions for AI coding agents working in this repo
+- [AI_ENGINEERING.md](./AI_ENGINEERING.md) — how AI assistance was used on this project
