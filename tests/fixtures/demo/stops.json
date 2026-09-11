@@ -1,0 +1,89 @@
+[
+  {
+    "externalId": "stratford",
+    "name": "Stratford",
+    "stopType": "STATION",
+    "lat": 51.5416,
+    "lon": -0.0042,
+    "lines": [
+      { "lineExternalId": "central", "sequence": 6 },
+      { "lineExternalId": "jubilee", "sequence": 1 },
+      { "lineExternalId": "elizabeth", "sequence": 1 }
+    ]
+  },
+  {
+    "externalId": "stratford-central-platform",
+    "name": "Stratford (Central line platform)",
+    "stopType": "PLATFORM",
+    "parentExternalId": "stratford",
+    "lat": 51.5416,
+    "lon": -0.0042,
+    "lines": [{ "lineExternalId": "central", "sequence": 6 }]
+  },
+  {
+    "externalId": "liverpool-street",
+    "name": "Liverpool Street",
+    "stopType": "STATION",
+    "lat": 51.5178,
+    "lon": -0.0823,
+    "lines": [
+      { "lineExternalId": "central", "sequence": 5 },
+      { "lineExternalId": "elizabeth", "sequence": 2 }
+    ]
+  },
+  {
+    "externalId": "bank",
+    "name": "Bank",
+    "stopType": "STATION",
+    "lat": 51.5133,
+    "lon": -0.0886,
+    "lines": [{ "lineExternalId": "central", "sequence": 4 }]
+  },
+  {
+    "externalId": "tottenham-court-road",
+    "name": "Tottenham Court Road",
+    "stopType": "STATION",
+    "lat": 51.5165,
+    "lon": -0.1308,
+    "lines": [
+      { "lineExternalId": "central", "sequence": 3 },
+      { "lineExternalId": "elizabeth", "sequence": 3 }
+    ]
+  },
+  {
+    "externalId": "oxford-circus",
+    "name": "Oxford Circus",
+    "stopType": "STATION",
+    "lat": 51.5152,
+    "lon": -0.1418,
+    "lines": [{ "lineExternalId": "central", "sequence": 2 }]
+  },
+  {
+    "externalId": "bond-street",
+    "name": "Bond Street",
+    "stopType": "STATION",
+    "lat": 51.5142,
+    "lon": -0.1494,
+    "lines": [
+      { "lineExternalId": "central", "sequence": 1 },
+      { "lineExternalId": "jubilee", "sequence": 2 },
+      { "lineExternalId": "elizabeth", "sequence": 4 }
+    ]
+  },
+  {
+    "externalId": "hainault",
+    "name": "Hainault",
+    "stopType": "STATION",
+    "lat": 51.6034,
+    "lon": 0.0913,
+    "lines": [{ "lineExternalId": "central", "sequence": 7 }]
+  },
+  {
+    "externalId": "epping",
+    "name": "Epping",
+    "stopType": "STATION",
+    "lat": 51.6624,
+    "lon": 0.1136,
+    "lines": [{ "lineExternalId": "central", "sequence": 8 }]
+  }
+]

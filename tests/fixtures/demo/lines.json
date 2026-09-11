@@ -1,0 +1,20 @@
+[
+  {
+    "externalId": "central",
+    "name": "Central",
+    "modeExternalId": "tube",
+    "color": "#DC241F"
+  },
+  {
+    "externalId": "jubilee",
+    "name": "Jubilee",
+    "modeExternalId": "tube",
+    "color": "#A0A5A9"
+  },
+  {
+    "externalId": "elizabeth",
+    "name": "Elizabeth line",
+    "modeExternalId": "elizabeth-line",
+    "color": "#6950A1"
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "lineExternalId": "central",
+    "statusSeverityLabel": "Minor Delays",
+    "description": "Minor delays due to an earlier signal failure at Leytonstone.",
+    "recordedAt": "2026-09-11T08:15:00+01:00"
+  },
+  {
+    "lineExternalId": "jubilee",
+    "statusSeverityLabel": "Good Service",
+    "recordedAt": "2026-09-11T08:15:00+01:00"
+  },
+  {
+    "lineExternalId": "elizabeth",
+    "statusSeverityLabel": "Good Service",
+    "recordedAt": "2026-09-11T08:15:00+01:00"
+  }
+]
