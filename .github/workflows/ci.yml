@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DATABASE_URL: "postgresql://transitpulse:transitpulse@localhost:5432/transitpulse"
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: transitpulse
+          POSTGRES_PASSWORD: transitpulse
+          POSTGRES_DB: transitpulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U transitpulse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint (Biome)
+        run: pnpm lint
+
+      - name: Apply migrations
+        run: pnpm exec prisma migrate deploy
+
+      - name: Seed demo data
+        run: pnpm db:seed
+
+      - name: Unit + component tests
+        env:
+          DATABASE_URL: "postgresql://transitpulse:transitpulse@localhost:5432/transitpulse_test"
+        run: |
+          PGPASSWORD=transitpulse psql -h localhost -U transitpulse -d transitpulse -c "CREATE DATABASE transitpulse_test;"
+          pnpm exec prisma migrate deploy
+          pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Non-blocking for now — see TESTING.md for the plan to make this
+    # required once it has proven stable in CI.
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: transitpulse
+          POSTGRES_PASSWORD: transitpulse
+          POSTGRES_DB: transitpulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U transitpulse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations and seed
+        run: |
+          pnpm exec prisma migrate deploy
+          pnpm db:seed
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        run: pnpm test:e2e
