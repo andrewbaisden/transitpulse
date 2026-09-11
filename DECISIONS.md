@@ -357,3 +357,60 @@ returns `{ unavailable: true, rows: [] }` rather than letting the page
 (AGENTS.md: never fabricate — say so in the UI).
 
 **Status.** Accepted.
+
+---
+
+## ADR-016: MapLibre GL JS + OpenFreeMap for the Phase 6 network map
+
+**Context.** The roadmap names "MapLibre/Mapbox" as the Phase 6 map layer
+(ARCHITECTURE.md). Mapbox GL JS requires a Mapbox account and an access
+token (and bills per map load past a free tier); MapLibre GL JS is the
+open-source fork with an identical API, no account, no token.
+
+**Decision.**
+
+- **MapLibre GL JS** (`maplibre-gl`), not Mapbox GL JS — no token to
+  provision or document as a required env var, no per-load billing risk
+  for a portfolio project with no traffic controls.
+- **Tiles from OpenFreeMap** (`tiles.openfreemap.org/styles/positron`) —
+  a free, no-API-key vector tile host, chosen over the bare MapLibre demo
+  style (`demotiles.maplibre.org`, intentionally coarse/for testing only)
+  because it's an actual usable basemap. **Revisit trigger**: self-host
+  tiles (OpenFreeMap publishes the full pipeline) if this project ever
+  needs an SLA OpenFreeMap doesn't offer, or the free tier's usage
+  expectations stop fitting.
+- **One `NetworkMap` component, two call sites.** `/map` plots every
+  `STATION`/`HUB` stop with coordinates (`getMapStops`); the station
+  detail page passes it a single-stop array as a "where is this" embed
+  (`maxZoom` capped tighter for the single-point case). No separate
+  "mini map" component — `fitBounds` over one point behaves fine.
+- **Marker colour = the stop's first associated line's colour**, not a
+  separate mode-colour palette — reuses the same per-line brand colours
+  `LineBadge` already shows elsewhere (`Line.color`, already in Postgres)
+  rather than inventing new mapping logic. A stop with several lines
+  shows only one colour; picking a "true" multi-line marker style (split
+  pin, cluster ring) is deferred until it's an actual complaint, not
+  designed for speculatively.
+- **No `next/dynamic(..., { ssr: false })` wrapper.** `maplibre-gl`'s
+  `Map` is only ever constructed inside `useEffect` (client-only by
+  construction — SSR never runs effects), and the module import itself
+  doesn't touch `window`/`document` at the top level, so plain `"use
+  client"` + `useEffect` is sufficient; verified no SSR crash against the
+  actual dev server before deciding this, not assumed.
+
+**Consequences.** `pnpm add maplibre-gl` is the first "map library"
+dependency this project installs — AGENTS.md's dependency policy explicitly
+named this as premature before Phase 6; it's no longer premature.
+`NetworkMap`'s own unit test (`tests/components/network-map.test.tsx`)
+mocks the whole `maplibre-gl` module (jsdom has no WebGL) and asserts the
+component wires stop data into the right constructor calls — it does not,
+and cannot, prove WebGL tiles actually paint. That was verified manually:
+in this development environment's automated browser tooling, MapLibre's
+*own* official hosted demo page (not just this project's code) also
+renders a blank canvas — a known limitation of that specific automation
+tooling's WebGL/screenshot path, not a defect here. Marker placement,
+correct colours, style/tile fetches (200, real vector tile bytes), and
+zero console errors were all confirmed directly; actual tile painting
+should be spot-checked in a normal browser.
+
+**Status.** Accepted.

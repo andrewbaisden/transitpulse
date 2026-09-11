@@ -4,12 +4,14 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–5 of 15.** A static network explorer with a
+> **Current status: Phases 1–6 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
-> plus live arrival boards on each station page (fetched per request, not
-> stored — see DECISIONS.md ADR-015). No map, reliability analytics,
-> crowding, or prediction yet (see [Roadmap](#roadmap) below and
-> [ARCHITECTURE.md](./ARCHITECTURE.md) for what's built vs planned).
+> live arrival boards on each station page (fetched per request, not
+> stored — see DECISIONS.md ADR-015), and an interactive MapLibre network
+> map at `/map` plus a per-station location embed (ADR-016). No
+> reliability analytics, crowding, or prediction yet (see
+> [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
+> what's built vs planned).
 
 ## What this is (and isn't)
 
@@ -45,13 +47,14 @@ the same pipeline in a later phase without a domain rewrite.
 | Server-fetched state | TanStack Query (search-as-you-type only) |
 | Forms | React Hook Form (installed for the fixed target stack; unwired until a real form exists — see DECISIONS.md) |
 | Database | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`) |
+| Map | MapLibre GL JS + OpenFreeMap tiles (no API key — see DECISIONS.md ADR-016) |
 | Lint/format | Biome |
 | Git hooks | Husky + lint-staged |
 | Testing | Vitest, React Testing Library, Playwright |
 | CI | GitHub Actions |
 
-Redis, BullMQ, MapLibre/Mapbox, and an auth provider are **not** installed
-yet — they have no real use case until later phases (see
+Redis, BullMQ, and an auth provider are **not** installed yet — they have
+no real use case until later phases (see
 [DECISIONS.md](./DECISIONS.md)).
 
 ## Local setup
@@ -116,10 +119,16 @@ ingested into Postgres (arrivals are seconds-old predictions, not
 structural network data — see DECISIONS.md ADR-015). A failed live fetch
 shows an honest "not available" state rather than an empty-looking board.
 
-Phases 6–15 are architected for but not yet built: an interactive map,
-historical reliability, crowding/occupancy, realtime infrastructure,
-anomaly detection, arrival prediction, a simulation provider,
-personalisation, and production observability. See
+Phase 6 adds an interactive MapLibre network map at `/map` (`getMapStops`
+→ `NetworkMap`) plotting every station/hub with coordinates, plus a
+per-station location embed on the station detail page — one component,
+two call sites. No API key required (OpenFreeMap tiles); see DECISIONS.md
+ADR-016.
+
+Phases 7–15 are architected for but not yet built: historical reliability,
+crowding/occupancy, realtime infrastructure, anomaly detection, arrival
+prediction, a simulation provider, personalisation, and production
+observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

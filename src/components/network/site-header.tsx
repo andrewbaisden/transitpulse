@@ -5,6 +5,7 @@ const NAV_LINKS = [
   { href: "/", label: "Overview" },
   { href: "/lines", label: "Lines" },
   { href: "/stations", label: "Stations" },
+  { href: "/map", label: "Map" },
 ];
 
 export function SiteHeader() {

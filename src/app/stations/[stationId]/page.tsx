@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrivalBoard } from "@/components/network/arrival-board";
 import { LineBadge } from "@/components/network/line-badge";
+import { NetworkMap } from "@/components/network/network-map";
 import { StopHierarchyBreadcrumb } from "@/components/network/stop-hierarchy-breadcrumb";
 import { getArrivalBoard } from "@/server/queries/arrivals";
 import { getStationDetail } from "@/server/queries/stops";
@@ -47,6 +48,25 @@ export default async function StationDetailPage({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {station.lat !== null && station.lon !== null && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold">Location</h2>
+          <NetworkMap
+            stops={[
+              {
+                id: station.id,
+                name: station.name,
+                lat: station.lat,
+                lon: station.lon,
+                lineColor: station.lines[0]?.color ?? null,
+              },
+            ]}
+            className="h-[300px] w-full rounded-lg border"
+            maxZoom={15}
+          />
         </div>
       )}
 
