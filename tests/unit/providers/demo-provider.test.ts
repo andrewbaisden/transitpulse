@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DemoProvider } from "@/server/providers/demo/demo-provider";
-import { ProviderLineSchema, type TransitProvider } from "@/server/providers/types";
+import {
+  ProviderArrivalSchema,
+  ProviderLineSchema,
+  type TransitProvider,
+} from "@/server/providers/types";
 
 describe("DemoProvider", () => {
   it("returns lines matching the provider schema", async () => {
@@ -42,13 +46,34 @@ describe("DemoProvider", () => {
     }
   });
 
-  it("does not implement arrivals/vehicles/occupancy (no Phase 1-3 feature needs them)", () => {
+  it("does not implement vehicles/occupancy (no Phase 1-9 feature needs them)", () => {
     // Typed as the interface, not the concrete class: these methods are
     // optional on TransitProvider precisely so a provider can omit them.
     const provider: TransitProvider = new DemoProvider();
-    expect(provider.getArrivals).toBeUndefined();
     expect(provider.getVehicles).toBeUndefined();
     expect(provider.getOccupancy).toBeUndefined();
+  });
+
+  it("returns arrivals matching the provider schema, with expectedArrival resolved against now", async () => {
+    const provider = new DemoProvider();
+    const before = Date.now();
+    const arrivals = await provider.getArrivals("stratford");
+    const after = Date.now();
+
+    expect(arrivals.length).toBeGreaterThan(0);
+    for (const arrival of arrivals) {
+      expect(() => ProviderArrivalSchema.parse(arrival)).not.toThrow();
+      const arrivalTime = new Date(arrival.expectedArrival).getTime();
+      // Every fixture entry is a few minutes out, not hours — this just
+      // pins "resolved against a live clock", not exact minute values.
+      expect(arrivalTime).toBeGreaterThan(before);
+      expect(arrivalTime).toBeLessThan(after + 15 * 60_000);
+    }
+  });
+
+  it("returns an empty array for a stop with no arrivals fixture, not an error", async () => {
+    const provider = new DemoProvider();
+    expect(await provider.getArrivals("does-not-exist")).toEqual([]);
   });
 });
 

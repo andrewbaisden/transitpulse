@@ -1,11 +1,17 @@
 import type {
+  DomainArrival,
   DomainLine,
   DomainServiceStatus,
   DomainStop,
   ServiceStatusLevel,
   TransportMode,
 } from "@/server/domain/types";
-import type { ProviderLine, ProviderServiceStatus, ProviderStop } from "@/server/providers/types";
+import type {
+  ProviderArrival,
+  ProviderLine,
+  ProviderServiceStatus,
+  ProviderStop,
+} from "@/server/providers/types";
 
 /**
  * Pure, provider-agnostic mapping from provider-normalized shapes to the
@@ -41,7 +47,7 @@ const MODE_EXTERNAL_ID_MAP: Record<string, TransportMode> = {
 // The demo fixtures only exercise a handful of these. The rest are TfL's
 // real status vocabulary for the rail modes TflProvider targets (Phase 4) —
 // confirmed against /Line/Meta/Severity, not guessed — bucketed into our
-// coarser 7-value domain enum. See DECISIONS.md ADR-013 for the judgment
+// coarser 7-value domain enum. See DECISIONS.md ADR-014 for the judgment
 // calls (e.g. "Closed"/"Not Running" -> SUSPENDED, "No Step Free Access" ->
 // GOOD_SERVICE) — the original TfL label is preserved verbatim in
 // `description`, so nothing is lost, only bucketed.
@@ -124,5 +130,20 @@ export function normalizeServiceStatus(
     description: providerStatus.description ?? null,
     source: sourceName,
     recordedAt: new Date(providerStatus.recordedAt),
+  };
+}
+
+// No controlled vocabulary to translate here (unlike mode/status) — a
+// straightforward field mapping, still kept as its own pure function for
+// the same reason the others are: unit-testable without a live provider.
+export function normalizeArrival(
+  providerArrival: ProviderArrival,
+  sourceName: string,
+): DomainArrival {
+  return {
+    lineExternalRef: providerArrival.lineExternalId,
+    destinationName: providerArrival.destinationName,
+    expectedArrival: new Date(providerArrival.expectedArrival),
+    source: sourceName,
   };
 }

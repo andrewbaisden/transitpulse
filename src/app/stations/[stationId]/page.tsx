@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrivalBoard } from "@/components/network/arrival-board";
 import { LineBadge } from "@/components/network/line-badge";
 import { StopHierarchyBreadcrumb } from "@/components/network/stop-hierarchy-breadcrumb";
+import { getArrivalBoard } from "@/server/queries/arrivals";
 import { getStationDetail } from "@/server/queries/stops";
 
 export default async function StationDetailPage({
@@ -10,7 +12,10 @@ export default async function StationDetailPage({
   params: Promise<{ stationId: string }>;
 }) {
   const { stationId } = await params;
-  const station = await getStationDetail(stationId);
+  const [station, board] = await Promise.all([
+    getStationDetail(stationId),
+    getArrivalBoard(stationId),
+  ]);
 
   if (!station) notFound();
 
@@ -45,10 +50,20 @@ export default async function StationDetailPage({
         </div>
       )}
 
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Arrivals</h2>
+        {board ? (
+          <ArrivalBoard board={board} />
+        ) : (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Arrivals aren't available for this station right now.
+          </div>
+        )}
+      </div>
+
       <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Live arrivals, crowding, and reliability metrics for this station arrive in later phases
-        (see the project roadmap in ARCHITECTURE.md) — Phase 1-3 covers the static network explorer
-        only.
+        Crowding and reliability metrics for this station arrive in later phases (see the project
+        roadmap in ARCHITECTURE.md).
       </div>
     </div>
   );

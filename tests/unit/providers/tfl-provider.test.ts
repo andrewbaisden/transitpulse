@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TflProviderError } from "@/server/providers/tfl/tfl-client";
 import { TflProvider } from "@/server/providers/tfl/tfl-provider";
 import {
+  ProviderArrivalSchema,
   ProviderLineSchema,
   ProviderServiceStatusSchema,
   ProviderStopSchema,
@@ -25,12 +26,13 @@ async function fixture(fileName: string): Promise<unknown> {
  * dedup of a stop shared by two lines, and status severity mapping.
  */
 async function stubTflFetch() {
-  const [lines, status, central, jubilee, hub] = await Promise.all([
+  const [lines, status, central, jubilee, hub, arrivals] = await Promise.all([
     fixture("lines.json"),
     fixture("status.json"),
     fixture("route-sequence-central.json"),
     fixture("route-sequence-jubilee.json"),
     fixture("hub.json"),
+    fixture("arrivals.json"),
   ]);
 
   vi.stubGlobal(
@@ -57,6 +59,9 @@ async function stubTflFetch() {
       }
       if (url.includes("/StopPoint/HUBSTR")) {
         return json(hub);
+      }
+      if (url.includes("/StopPoint/stratford/Arrivals")) {
+        return json(arrivals);
       }
       return new Response("not found", { status: 404 });
     }),
@@ -171,12 +176,25 @@ describe("TflProvider", () => {
     await expect(provider.getLines()).rejects.toThrow(TflProviderError);
   });
 
-  it("does not implement arrivals/vehicles/occupancy yet (Phase 5+)", () => {
+  it("does not implement vehicles/occupancy yet (Phase 9+)", () => {
     // Typed as the interface, not the concrete class: these methods are
     // optional on TransitProvider precisely so a provider can omit them.
     const provider: TransitProvider = new TflProvider({ appKey: "test-key" });
-    expect(provider.getArrivals).toBeUndefined();
     expect(provider.getVehicles).toBeUndefined();
     expect(provider.getOccupancy).toBeUndefined();
+  });
+
+  it("maps arrivals through the provider schema", async () => {
+    const provider = new TflProvider({ appKey: "test-key" });
+    const arrivals = await provider.getArrivals("stratford");
+
+    expect(arrivals).toHaveLength(2);
+    for (const arrival of arrivals) {
+      expect(() => ProviderArrivalSchema.parse(arrival)).not.toThrow();
+      expect(arrival.stopExternalId).toBe("stratford");
+    }
+    expect(arrivals[0].lineExternalId).toBe("central");
+    expect(arrivals[0].destinationName).toBe("West Ruislip Underground Station");
+    expect(arrivals[0].expectedArrival).toBe("2026-09-11T19:53:24Z");
   });
 });

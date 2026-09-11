@@ -54,6 +54,12 @@ export const TflRouteSequenceRawSchema = z.object({
   ),
 });
 
+export const TflArrivalRawSchema = z.object({
+  lineId: z.string().min(1),
+  destinationName: z.string().min(1),
+  expectedArrival: z.string(),
+});
+
 export const TflHubStopPointRawSchema = z.object({
   id: z.string().min(1),
   commonName: z.string().min(1),

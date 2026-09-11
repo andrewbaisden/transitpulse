@@ -2,11 +2,13 @@
 
 ## Status
 
-This describes the system as built through **Phase 4** (static network
-explorer over demo data, plus a real `TflProvider` reachable via
-`pnpm db:sync:tfl` — see DECISIONS.md ADR-013), plus the target shape for
-later phases so the current design can be checked against where it needs
-to go. See [Roadmap](#roadmap-phases-4-15) for what's *not* built yet.
+This describes the system as built through **Phase 5** (static network
+explorer over demo data, a real `TflProvider` reachable via
+`pnpm db:sync:tfl` — ADR-014 — and live arrival boards fetched per-request
+via `src/server/domain/live/`, not ingested — ADR-015), plus the target
+shape for later phases so the current design can be checked against where
+it needs to go. See [Roadmap](#roadmap-phases-4-15) for what's *not* built
+yet.
 
 ## System overview
 
@@ -62,9 +64,13 @@ so `DemoProvider` reading a fixture goes through the exact same validation
 a TfL adapter's HTTP response would.
 
 `getArrivals` / `getVehicles` / `getOccupancy` are optional on the
-interface — no Phase 1-3 feature calls them. They exist now only so the
-interface shape doesn't need to change when Phase 5 (arrivals), Phase 6
-(vehicles), and Phase 8/11 (occupancy) implement them.
+interface so it didn't need to change shape when a phase actually
+implements one. `getArrivals` is now implemented (Phase 5, ✅ below) on
+both `DemoProvider` and `TflProvider` — see
+`src/server/domain/live/get-stop-arrivals.ts` for how it's called (a
+live, non-persisted per-request read, not ingestion; ADR-015).
+`getVehicles`/`getOccupancy` remain unimplemented, reserved for later
+phases.
 
 ## Domain model
 
@@ -129,7 +135,11 @@ ADR-002. When they arrive, the intended split is:
 
 Server Components read through `src/server/queries/*.ts` (thin, plain
 async functions wrapping Prisma) — not raw Prisma calls scattered across
-`page.tsx` files, and not React Query wrapping server-readable data.
+`page.tsx` files, and not React Query wrapping server-readable data. One
+exception as of Phase 5: `queries/arrivals.ts` also calls
+`src/server/domain/live/` for a live provider read (arrivals aren't
+ingested — ADR-015) alongside its Prisma calls; the call-site convention
+("pages read through `queries/*.ts`") still holds.
 
 React Query (`src/components/providers.tsx`) is scoped to exactly one
 client-initiated case: search-as-you-type (`src/components/network/search-box.tsx`
@@ -163,7 +173,7 @@ suited to long-lived queue consumers.
 | Phase | Adds |
 |---|---|
 | 4 | ✅ `TflProvider` implementing `TransitProvider` against the real TfL Unified API |
-| 5 | `getArrivals`, arrival boards, provenance on dynamic/observed data |
+| 5 | ✅ `getArrivals`, arrival boards, provenance on dynamic/observed data |
 | 6 | MapLibre/Mapbox map layer over existing `lat`/`lon` |
 | 7 | Historical sampling of real observations (delay, arrival error) |
 | 8 | Reliability methodology, baselines, `Reliability` entity |

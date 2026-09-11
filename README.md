@@ -4,11 +4,11 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–4 of 15.** This is a static network explorer,
-> now with a real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded
-> demo data — no live arrival boards, map, reliability analytics, crowding,
-> or prediction yet, and the UI itself still just reads whatever's in
-> Postgres (see [Roadmap](#roadmap) below and
+> **Current status: Phases 1–5 of 15.** A static network explorer with a
+> real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
+> plus live arrival boards on each station page (fetched per request, not
+> stored — see DECISIONS.md ADR-015). No map, reliability analytics,
+> crowding, or prediction yet (see [Roadmap](#roadmap) below and
 > [ARCHITECTURE.md](./ARCHITECTURE.md) for what's built vs planned).
 
 ## What this is (and isn't)
@@ -73,8 +73,7 @@ Copy `.env.example` to `.env` first if it doesn't already exist locally.
 | `DATABASE_URL` | yes | Postgres connection string |
 | `NODE_ENV` | yes (defaults to `development`) | |
 | `NEXT_PUBLIC_APP_NAME` | yes | Display name, client-exposed |
-
-TfL credentials (`TFL_APP_ID`, `TFL_APP_KEY`) aren't needed yet — Phase 4.
+| `TFL_APP_KEY` | only for `pnpm db:sync:tfl` and any page reading a `source: "tfl"` stop's arrivals | TfL Unified API key — get one at [api-portal.tfl.gov.uk](https://api-portal.tfl.gov.uk) |
 
 ### Database
 
@@ -106,14 +105,21 @@ demo data, and a basic UI (network overview, lines, stations, search).
 Phase 4 adds `TflProvider` (`src/server/providers/tfl/`), a real
 `TransitProvider` implementation against the live TfL Unified API, and
 `pnpm db:sync:tfl` to run it through the same ingestion pipeline the demo
-data uses. See DECISIONS.md ADR-013 for the scoping decisions. The UI
+data uses. See DECISIONS.md ADR-014 for the scoping decisions. The UI
 itself isn't wired to prefer or select a source yet — see the caution note
 in `prisma/sync-tfl.ts`.
 
-Phases 5–15 are architected for but not yet built: live arrivals, an
-interactive map, historical reliability, crowding/occupancy, realtime
-infrastructure, anomaly detection, arrival prediction, a simulation
-provider, personalisation, and production observability. See
+Phase 5 adds live arrival boards on each station page: `getArrivals` is
+now implemented on both `TflProvider` and `DemoProvider`, fetched fresh on
+every request through a new `src/server/domain/live/` layer rather than
+ingested into Postgres (arrivals are seconds-old predictions, not
+structural network data — see DECISIONS.md ADR-015). A failed live fetch
+shows an honest "not available" state rather than an empty-looking board.
+
+Phases 6–15 are architected for but not yet built: an interactive map,
+historical reliability, crowding/occupancy, realtime infrastructure,
+anomaly detection, arrival prediction, a simulation provider,
+personalisation, and production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

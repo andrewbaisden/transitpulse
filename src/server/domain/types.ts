@@ -52,3 +52,13 @@ export interface DomainServiceStatus {
   source: string;
   recordedAt: Date;
 }
+
+export interface DomainArrival {
+  lineExternalRef: string;
+  destinationName: string;
+  expectedArrival: Date;
+  // Provenance (ADR-005): which provider this prediction came from. Never
+  // persisted — arrivals are fetched live per request (see
+  // src/server/domain/live/), not ingested into Postgres.
+  source: string;
+}

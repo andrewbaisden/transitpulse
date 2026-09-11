@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   NormalizationError,
+  normalizeArrival,
   normalizeLine,
   normalizeServiceStatus,
   normalizeStop,
 } from "@/server/domain/ingestion/normalize";
-import type { ProviderLine, ProviderServiceStatus, ProviderStop } from "@/server/providers/types";
+import type {
+  ProviderArrival,
+  ProviderLine,
+  ProviderServiceStatus,
+  ProviderStop,
+} from "@/server/providers/types";
 
 describe("normalizeLine", () => {
   it("maps a known mode external id to the domain enum", () => {
@@ -93,7 +99,7 @@ describe("normalizeServiceStatus", () => {
     expect(() => normalizeServiceStatus(providerStatus, "demo")).toThrow(NormalizationError);
   });
 
-  // Real TfL severities beyond the demo vocabulary (see ADR-013) — locking
+  // Real TfL severities beyond the demo vocabulary (see ADR-014) — locking
   // in the bucketing decisions so a future edit to the map is deliberate.
   it.each([
     ["Closed", "SUSPENDED"],
@@ -109,5 +115,25 @@ describe("normalizeServiceStatus", () => {
     };
 
     expect(normalizeServiceStatus(providerStatus, "tfl").status).toBe(expected);
+  });
+});
+
+describe("normalizeArrival", () => {
+  it("maps fields through and parses expectedArrival into a Date", () => {
+    const providerArrival: ProviderArrival = {
+      stopExternalId: "stratford",
+      lineExternalId: "central",
+      destinationName: "Ealing Broadway",
+      expectedArrival: "2026-09-11T19:53:24Z",
+    };
+
+    const arrival = normalizeArrival(providerArrival, "demo");
+
+    expect(arrival).toEqual({
+      lineExternalRef: "central",
+      destinationName: "Ealing Broadway",
+      expectedArrival: new Date("2026-09-11T19:53:24Z"),
+      source: "demo",
+    });
   });
 });

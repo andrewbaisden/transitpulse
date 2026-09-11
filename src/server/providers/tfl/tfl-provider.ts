@@ -1,4 +1,6 @@
 import {
+  type ProviderArrival,
+  ProviderArrivalSchema,
   type ProviderLine,
   ProviderLineSchema,
   type ProviderServiceStatus,
@@ -8,6 +10,7 @@ import {
   type TransitProvider,
 } from "@/server/providers/types";
 import {
+  TflArrivalRawSchema,
   TflHubStopPointRawSchema,
   TflLineRawSchema,
   TflLineWithStatusRawSchema,
@@ -17,7 +20,7 @@ import {
 } from "./tfl-client";
 
 /**
- * Real TfL Unified API adapter — see DECISIONS.md ADR-013 for the scoping
+ * Real TfL Unified API adapter — see DECISIONS.md ADR-014 for the scoping
  * decisions behind this implementation (rail modes only, no line colour,
  * status severity mapping, per-branch sequence numbering, hub resolution).
  *
@@ -28,7 +31,7 @@ import {
  */
 
 // Bus excluded deliberately: ~700 routes/thousands of stops would dwarf the
-// rail network this phase targets. See DECISIONS.md ADR-013.
+// rail network this phase targets. See DECISIONS.md ADR-014.
 const DEFAULT_MODES = ["tube", "overground", "elizabeth-line", "dlr", "tram"];
 
 /**
@@ -102,7 +105,7 @@ export class TflProvider implements TransitProvider {
         name: line.name,
         modeExternalId: line.modeName,
         // TfL's API returns no branding colour for a line — left unset
-        // rather than hardcoded (see ADR-013) instead of risking a stale
+        // rather than hardcoded (see ADR-014) instead of risking a stale
         // guess at the official hex value.
       }),
     );
@@ -156,7 +159,7 @@ export class TflProvider implements TransitProvider {
     // references is looked up individually and stored under THAT id
     // (ignoring whatever id the response itself claims) — otherwise
     // ingestStops can't resolve the parent relationship at all. See
-    // DECISIONS.md ADR-013.
+    // DECISIONS.md ADR-014.
     await mapWithConcurrency(hubIds, 10, async (hubId) => {
       const hub = await tflRequest(this.url(`/StopPoint/${hubId}`), TflHubStopPointRawSchema);
       stops.set(hubId, {
@@ -207,6 +210,22 @@ export class TflProvider implements TransitProvider {
     return statuses;
   }
 
-  // getArrivals / getVehicles / getOccupancy intentionally not implemented —
-  // reserved for Phase 5 / Phase 9-10 respectively.
+  async getArrivals(stopExternalId: string): Promise<ProviderArrival[]> {
+    const raw = await tflRequest(
+      this.url(`/StopPoint/${stopExternalId}/Arrivals`),
+      TflArrivalRawSchema.array(),
+    );
+
+    return raw.map((arrival) =>
+      ProviderArrivalSchema.parse({
+        stopExternalId,
+        lineExternalId: arrival.lineId,
+        destinationName: arrival.destinationName,
+        expectedArrival: arrival.expectedArrival,
+      }),
+    );
+  }
+
+  // getVehicles / getOccupancy intentionally not implemented — reserved for
+  // Phase 9-10.
 }

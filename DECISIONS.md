@@ -220,7 +220,23 @@ actually wanted.
 
 ---
 
-## ADR-013: TflProvider (Phase 4) scoping decisions
+## ADR-013: `prisma init` scaffolds AI-agent "skills" directories — removed
+
+**Context.** Prisma 7's `prisma init` automatically created
+`.claude/skills/`, `.agents/skills/`, `.windsurf/skills/`, and
+`skills-lock.json` in the repo root, unasked.
+
+**Decision.** Deleted immediately after scaffold. Not part of this
+project's tooling.
+
+**Consequences.** None — purely a note for future maintainers who run
+`prisma init` again and are surprised by the same files reappearing.
+
+**Status.** Accepted.
+
+---
+
+## ADR-014: TflProvider (Phase 4) scoping decisions
 
 **Context.** `TflProvider` is the first real `TransitProvider` implementation,
 against TfL's live Unified API. Several shapes needed judgment calls the
@@ -295,16 +311,49 @@ so it's fast and doesn't require a key in CI.
 
 ---
 
-## ADR-013: `prisma init` scaffolds AI-agent "skills" directories — removed
+## ADR-015: `src/server/domain/live/` — a second, narrower provider-boundary exception for live reads
 
-**Context.** Prisma 7's `prisma init` automatically created
-`.claude/skills/`, `.agents/skills/`, `.windsurf/skills/`, and
-`skills-lock.json` in the repo root, unasked.
+**Context.** Phase 5 adds arrival boards. AGENTS.md's provider boundary
+rule (written for Phase 1-3, before arrivals existed) says only
+`src/server/domain/ingestion/*` and `prisma/seed.ts` (or a future sync
+job) may import a concrete provider (`DemoProvider`/`TflProvider`) — every
+existing case is batch fetch-normalize-persist into Postgres. Arrivals
+don't fit: a prediction is seconds-old by the time it'd be read back, so
+persisting it would just be a slower, staler cache than calling the
+provider directly on each request — there is deliberately no
+`ArrivalPrediction` table (see ARCHITECTURE.md's schema-omission list).
 
-**Decision.** Deleted immediately after scaffold. Not part of this
-project's tooling.
+**Decision.** Add `src/server/domain/live/` as a second sanctioned
+concrete-provider touchpoint, alongside ingestion/seed, scoped narrowly to
+non-persisted per-request reads:
 
-**Consequences.** None — purely a note for future maintainers who run
-`prisma init` again and are surprised by the same files reappearing.
+- `provider-registry.ts` — `getProviderForSource(source)`, a small factory
+  keyed on `Stop.source`/`Line.source` (always a value already in
+  Postgres, never user input — an unrecognized source means data was
+  ingested by a provider this registry hasn't been told about, so it
+  throws rather than guessing).
+- `get-stop-arrivals.ts` — calls `provider.getArrivals`, normalizes via
+  the same `normalizeArrival` ingestion's normalizers use, returns
+  `DomainArrival[]` only. The app/queries layer still never sees a
+  `Provider*` type or a concrete provider class — the boundary AGENTS.md
+  cares about (no leaked provider shapes) holds; only the *location*
+  allowed to construct a provider instance gains a second entry.
+
+AGENTS.md's provider boundary section is updated to name this file
+explicitly, so it stays the authoritative list rather than silently
+diverging from it.
+
+**Consequences.** `src/server/queries/arrivals.ts` (`getArrivalBoard`) is
+the first file in `queries/` that isn't pure Prisma (ADR-008 described
+every prior query that way) — it calls `get-stop-arrivals.ts` for the live
+prediction, then Prisma to resolve the arrival's `lineExternalRef` against
+the already-ingested `Line` row for display (name/colour). The
+Server-Component call-site convention ("pages read through
+`queries/*.ts`") holds; only the *implementation* is now sometimes hybrid.
+A live call can fail (network, an unrecognized source, a provider that
+doesn't implement `getArrivals`) — `getArrivalBoard` catches this and
+returns `{ unavailable: true, rows: [] }` rather than letting the page
+500 or rendering an empty board that looks like "confirmed no arrivals"
+(AGENTS.md: never fabricate — say so in the UI).
 
 **Status.** Accepted.

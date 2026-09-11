@@ -34,8 +34,10 @@ the domain depends on. A new provider (TfL, GTFS-RT, Simulation):
    the Zod schemas already in `providers/types.ts` — extend those schemas
    rather than inventing parallel ones.
 2. Never gets imported by anything in `src/app/` or `src/server/queries/`
-   directly — only `src/server/domain/ingestion/*` and `prisma/seed.ts` (or
-   a future sync job) touch a concrete provider.
+   directly — only `src/server/domain/ingestion/*`, `prisma/seed.ts` (or a
+   future sync job), and `src/server/domain/live/*` (live, non-persisted
+   per-request reads — e.g. arrivals; see DECISIONS.md ADR-015) touch a
+   concrete provider.
 
 ## Data flow rule (RSC vs React Query)
 

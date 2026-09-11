@@ -1,0 +1,8 @@
+{
+  "stratford": [
+    { "lineExternalId": "central", "destinationName": "Ealing Broadway", "minutesFromNow": 2 },
+    { "lineExternalId": "central", "destinationName": "West Ruislip", "minutesFromNow": 7 },
+    { "lineExternalId": "jubilee", "destinationName": "Stanmore", "minutesFromNow": 4 }
+  ],
+  "bank": [{ "lineExternalId": "central", "destinationName": "Epping", "minutesFromNow": 3 }]
+}
