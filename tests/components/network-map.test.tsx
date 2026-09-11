@@ -4,52 +4,43 @@ import { describe, expect, it, vi } from "vitest";
 import { NetworkMap } from "@/components/network/network-map";
 import type { MapStop } from "@/server/queries/map";
 
-// jsdom has no WebGL — maplibre-gl is mocked entirely rather than rendered,
-// matching how the library itself is unit-tested upstream. This proves the
-// component wires stop data into the correct maplibre calls, not that
-// WebGL painting works (that's verified manually in a real browser).
+// leaflet is mocked entirely rather than rendered — this proves the
+// component wires stop data into the correct leaflet calls, not that tile
+// painting works (that's verified manually in a real browser).
 // vi.mock is hoisted above this file's own top-level consts, so the mock
 // instances it needs to reference have to be created inside vi.hoisted
 // instead — a plain `const markerInstance = ...` above would still throw a
 // TDZ error when the hoisted mock factory runs.
-const { MapCtor, MarkerCtor, PopupCtor, mapInstance, markerInstance } = vi.hoisted(() => {
-  const markerInstance = {
-    setLngLat: vi.fn().mockReturnThis(),
-    setPopup: vi.fn().mockReturnThis(),
-    addTo: vi.fn().mockReturnThis(),
-    remove: vi.fn(),
-  };
-  const mapInstance = {
-    addControl: vi.fn(),
-    fitBounds: vi.fn(),
-    remove: vi.fn(),
-  };
-  return {
-    // `new`-able: maplibre-gl's real exports are classes, and the
-    // component calls them with `new`, so arrow-function mocks (not
-    // constructible) would throw "is not a constructor".
-    MapCtor: vi.fn(function MapCtor() {
-      return mapInstance;
-    }),
-    MarkerCtor: vi.fn(function MarkerCtor() {
-      return markerInstance;
-    }),
-    PopupCtor: vi.fn(function PopupCtor() {
-      return { setHTML: vi.fn().mockReturnThis() };
-    }),
-    mapInstance,
-    markerInstance,
-  };
-});
+const { markerInstance, mapInstance, markerFn, tileLayerFn, latLngBoundsFn, divIconFn } =
+  vi.hoisted(() => {
+    const markerInstance = {
+      bindPopup: vi.fn().mockReturnThis(),
+      addTo: vi.fn().mockReturnThis(),
+    };
+    const tileLayerInstance = { addTo: vi.fn().mockReturnThis() };
+    const mapInstance = {
+      setView: vi.fn().mockReturnThis(),
+      fitBounds: vi.fn(),
+      remove: vi.fn(),
+    };
+    return {
+      markerInstance,
+      mapInstance,
+      markerFn: vi.fn(() => markerInstance),
+      tileLayerFn: vi.fn(() => tileLayerInstance),
+      latLngBoundsFn: vi.fn(() => "bounds"),
+      divIconFn: vi.fn(({ html }: { html: string }) => html),
+    };
+  });
 
-vi.mock("maplibre-gl", () => ({
-  Map: MapCtor,
-  Marker: MarkerCtor,
-  Popup: PopupCtor,
-  NavigationControl: vi.fn(),
-  LngLatBounds: vi.fn(function LngLatBounds() {
-    return { extend: vi.fn().mockReturnThis() };
-  }),
+vi.mock("leaflet", () => ({
+  default: {
+    map: vi.fn(() => mapInstance),
+    tileLayer: tileLayerFn,
+    marker: markerFn,
+    divIcon: divIconFn,
+    latLngBounds: latLngBoundsFn,
+  },
 }));
 
 const STOPS: MapStop[] = [
@@ -57,31 +48,47 @@ const STOPS: MapStop[] = [
   { id: "stop-2", name: "Bank", lat: 51.5133, lon: -0.0886, lineColor: null },
 ];
 
-describe("NetworkMap", () => {
-  it("creates one marker per stop, positioned and coloured from the stop data", () => {
-    render(<NetworkMap stops={STOPS} />);
+// The component loads leaflet via a runtime `import()` (see network-map.tsx
+// for why it can't be a static import), so its setup runs a tick after
+// render rather than synchronously.
+function flushLeafletImport(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
-    expect(MarkerCtor).toHaveBeenCalledTimes(2);
-    expect(MarkerCtor).toHaveBeenCalledWith({ color: "#DC241F" });
+describe("NetworkMap", () => {
+  it("creates one marker per stop, positioned and coloured from the stop data", async () => {
+    render(<NetworkMap stops={STOPS} />);
+    await flushLeafletImport();
+
+    expect(markerFn).toHaveBeenCalledTimes(2);
+    expect(markerFn).toHaveBeenCalledWith(
+      [51.5416, -0.0042],
+      expect.objectContaining({ icon: expect.stringContaining("#DC241F") }),
+    );
     // Falls back to a default colour rather than passing null through.
-    expect(MarkerCtor).toHaveBeenCalledWith({ color: "#6b7280" });
-    expect(markerInstance.setLngLat).toHaveBeenCalledWith([-0.0042, 51.5416]);
-    expect(markerInstance.setLngLat).toHaveBeenCalledWith([-0.0886, 51.5133]);
+    expect(markerFn).toHaveBeenCalledWith(
+      [51.5133, -0.0886],
+      expect.objectContaining({ icon: expect.stringContaining("#6b7280") }),
+    );
+    expect(markerInstance.bindPopup).toHaveBeenCalledWith(expect.stringContaining("Stratford"));
+    expect(markerInstance.bindPopup).toHaveBeenCalledWith(expect.stringContaining("Bank"));
   });
 
-  it("fits the view to the stops and removes the map on unmount", () => {
+  it("fits the view to the stops and removes the map on unmount", async () => {
     const { unmount } = render(<NetworkMap stops={STOPS} />);
+    await flushLeafletImport();
 
     expect(mapInstance.fitBounds).toHaveBeenCalled();
 
     unmount();
     expect(mapInstance.remove).toHaveBeenCalled();
-    expect(markerInstance.remove).toHaveBeenCalled();
   });
 
-  it("skips fitBounds when there are no stops to plot", () => {
+  it("skips fitBounds when there are no stops to plot", async () => {
     mapInstance.fitBounds.mockClear();
     render(<NetworkMap stops={[]} />);
+    await flushLeafletImport();
+
     expect(mapInstance.fitBounds).not.toHaveBeenCalled();
   });
 });

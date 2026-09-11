@@ -413,4 +413,64 @@ correct colours, style/tile fetches (200, real vector tile bytes), and
 zero console errors were all confirmed directly; actual tile painting
 should be spot-checked in a normal browser.
 
+**Status.** Superseded by ADR-017 — the WebGL assumption above turned out
+to be wrong in normal browser use, not just an automation-tooling artifact.
+
+---
+
+## ADR-017: Leaflet + raster tiles, replacing MapLibre GL JS
+
+**Context.** ADR-016 assumed MapLibre's blank-canvas symptom seen in this
+development environment's browser automation was specific to that
+automation tooling, to be "spot-checked in a normal browser" later. That
+check happened: in a real, fully-updated Chrome on macOS, `/map` rendered
+markers (DOM-positioned, no WebGL needed) but never painted basemap tiles.
+`chrome://gpu` initially reported WebGL as hardware-accelerated, but
+toggling the Skia Graphite rendering backend off surfaced MapLibre's own
+runtime check throwing `GPUInitializationError: WebGL2 is required`,
+confirming actual WebGL2 context creation was failing in this browser
+session — not a network, CORS, CSP, or extension issue (all independently
+ruled out; OpenFreeMap's style/tile endpoints returned 200 with correct
+CORS headers throughout). Reverting the flag returned to the original
+silent failure rather than fixing it.
+
+**Decision.**
+
+- **Leaflet**, not MapLibre GL JS — draws raster tile images via plain
+  `<img>`/Canvas2D, no WebGL dependency at all. WebGL2 unavailability
+  isn't unique to one misbehaving machine; it's a real constraint for some
+  share of any public map feature's visitors (older hardware, some
+  corporate/VM setups, browsers with WebGL disabled), so this is a
+  compatibility improvement, not just a workaround for one dev environment.
+- **Tiles from the standard OpenStreetMap raster endpoint**
+  (`tile.openstreetmap.org`) — the no-signup default Leaflet's own docs
+  use. CARTO's Positron raster tiles were tried first (closest visual match
+  to the OpenFreeMap style ADR-016 chose) but now return an "API key
+  required" watermark even for light anonymous use, failing ADR-016's
+  no-API-key requirement. **Revisit trigger**: same as ADR-016 — self-host
+  or move to a paid tile provider if traffic ever needs an SLA the OSM
+  tile usage policy doesn't cover.
+- **Runtime `import("leaflet")` inside `useEffect`, not a top-level
+  import.** Unlike `maplibre-gl`, Leaflet's module touches `window` at
+  import time, which crashes the client component's SSR pass
+  (`ReferenceError: window is not defined`) if imported statically.
+  Deferring the import to inside the effect keeps this one component with
+  no `next/dynamic(..., { ssr: false })` wrapper, preserving ADR-016's
+  original reasoning for that call — just moved from "module import" to
+  "module import, deferred to the browser".
+- **Marker colour via a coloured SVG `divIcon`**, not Leaflet's default
+  marker image — the bundled default marker is a fixed blue PNG that can't
+  be recoloured per-line without shipping one image per line colour or
+  fighting bundler asset paths. Same per-line colour behaviour as before
+  (`Line.color`, falling back to `#6b7280`).
+- Component API (`stops`, `className`, `maxZoom`) is unchanged, so both
+  call sites (`/map`, station detail page embed) needed no edits.
+
+**Consequences.** `maplibre-gl` removed, `leaflet` + `@types/leaflet`
+added. `tests/components/network-map.test.tsx` now mocks `leaflet` instead
+and awaits a microtask tick before asserting, since the dynamic import
+resolves asynchronously. Verified in a real browser (not just automation
+tooling) that tiles, roads, and labels now paint correctly with no API-key
+watermark.
+
 **Status.** Accepted.

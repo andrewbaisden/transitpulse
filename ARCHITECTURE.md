@@ -6,8 +6,8 @@ This describes the system as built through **Phase 6** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, and an
-interactive MapLibre map at `/map` plus a per-station location embed,
-both backed by `getMapStops` over existing `lat`/`lon` — ADR-016), plus
+interactive Leaflet map at `/map` plus a per-station location embed,
+both backed by `getMapStops` over existing `lat`/`lon` — ADR-016/ADR-017), plus
 the target shape for later phases so the current design can be checked
 against where it needs to go. See [Roadmap](#roadmap-phases-4-15) for
 what's *not* built yet.
@@ -176,7 +176,7 @@ suited to long-lived queue consumers.
 |---|---|
 | 4 | ✅ `TflProvider` implementing `TransitProvider` against the real TfL Unified API |
 | 5 | ✅ `getArrivals`, arrival boards, provenance on dynamic/observed data |
-| 6 | ✅ MapLibre/Mapbox map layer over existing `lat`/`lon` |
+| 6 | ✅ Leaflet map layer over existing `lat`/`lon` (originally MapLibre — ADR-017) |
 | 7 | Historical sampling of real observations (delay, arrival error) |
 | 8 | Reliability methodology, baselines, `Reliability` entity |
 | 9 | `Occupancy` entity, `getOccupancy`, crowding source/confidence model |

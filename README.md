@@ -7,8 +7,8 @@ and disruption context on top of live service data, not just "next train in
 > **Current status: Phases 1–6 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
-> stored — see DECISIONS.md ADR-015), and an interactive MapLibre network
-> map at `/map` plus a per-station location embed (ADR-016). No
+> stored — see DECISIONS.md ADR-015), and an interactive Leaflet network
+> map at `/map` plus a per-station location embed (ADR-017). No
 > reliability analytics, crowding, or prediction yet (see
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned).
@@ -47,7 +47,7 @@ the same pipeline in a later phase without a domain rewrite.
 | Server-fetched state | TanStack Query (search-as-you-type only) |
 | Forms | React Hook Form (installed for the fixed target stack; unwired until a real form exists — see DECISIONS.md) |
 | Database | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`) |
-| Map | MapLibre GL JS + OpenFreeMap tiles (no API key — see DECISIONS.md ADR-016) |
+| Map | Leaflet + OpenStreetMap raster tiles (no API key — see DECISIONS.md ADR-017) |
 | Lint/format | Biome |
 | Git hooks | Husky + lint-staged |
 | Testing | Vitest, React Testing Library, Playwright |
@@ -119,11 +119,12 @@ ingested into Postgres (arrivals are seconds-old predictions, not
 structural network data — see DECISIONS.md ADR-015). A failed live fetch
 shows an honest "not available" state rather than an empty-looking board.
 
-Phase 6 adds an interactive MapLibre network map at `/map` (`getMapStops`
+Phase 6 adds an interactive Leaflet network map at `/map` (`getMapStops`
 → `NetworkMap`) plotting every station/hub with coordinates, plus a
 per-station location embed on the station detail page — one component,
-two call sites. No API key required (OpenFreeMap tiles); see DECISIONS.md
-ADR-016.
+two call sites. No API key required (OpenStreetMap raster tiles); see
+DECISIONS.md ADR-016 (original MapLibre GL JS decision) and ADR-017
+(superseding it with Leaflet after a real-browser WebGL2 failure).
 
 Phases 7–15 are architected for but not yet built: historical reliability,
 crowding/occupancy, realtime infrastructure, anomaly detection, arrival

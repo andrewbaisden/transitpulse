@@ -1,15 +1,19 @@
 "use client";
 
-import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import "leaflet/dist/leaflet.css";
+import type { DivIcon, Map as LeafletMap } from "leaflet";
 import { useEffect, useRef } from "react";
 import type { MapStop } from "@/server/queries/map";
 
-// OpenFreeMap's hosted "positron" style — free, no API key, no per-request
-// billing. See DECISIONS.md ADR-016 for why this over Mapbox (which needs a
-// token) or the bare MapLibre demo style (too coarse for a real network map).
-const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
-const LONDON_CENTER: [number, number] = [-0.1276, 51.5072];
+// Standard OpenStreetMap raster tiles — the no-signup default Leaflet's own
+// docs use. CARTO's "free" Positron raster tiles (tried first) now require
+// an API key even for light use, which fails ADR-016's no-API-key
+// requirement; OSM's tile usage policy permits this traffic level with no
+// registration. See DECISIONS.md ADR-016.
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const LONDON_CENTER: [number, number] = [51.5072, -0.1276];
 const DEFAULT_MARKER_COLOR = "#6b7280"; // zinc-500 — matches LineBadge's own fallback
 
 function escapeHtml(value: string): string {
@@ -21,6 +25,22 @@ function escapeHtml(value: string): string {
     "'": "&#39;",
   };
   return value.replace(/[&<>"']/g, (char) => entities[char] ?? char);
+}
+
+// A plain coloured pin as a divIcon, since Leaflet's default marker image
+// (blue, from a bundled PNG) can't be recoloured per-line without either
+// shipping one PNG per line colour or fighting bundler asset paths.
+function pinIcon(L: typeof import("leaflet"), color: string): DivIcon {
+  return L.divIcon({
+    className: "",
+    html: `<svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z" fill="${color}"/>
+      <circle cx="12" cy="12" r="5" fill="white"/>
+    </svg>`,
+    iconSize: [24, 32],
+    iconAnchor: [12, 32],
+    popupAnchor: [0, -32],
+  });
 }
 
 /**
@@ -43,36 +63,38 @@ export function NetworkMap({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const map = new MapLibreMap({
-      container: containerRef.current,
-      style: STYLE_URL,
-      center: LONDON_CENTER,
-      zoom: 10,
-    });
-    map.addControl(new NavigationControl(), "top-right");
+    // Leaflet's module touches `window` at import time, so it can't be a
+    // top-level import — that breaks the client component's SSR pass (see
+    // DECISIONS.md ADR-016). Deferring to a runtime import here keeps this
+    // one component with no next/dynamic wrapper.
+    let cancelled = false;
+    let map: LeafletMap | undefined;
 
-    const markers = stops.map((stop) =>
-      new Marker({ color: stop.lineColor ?? DEFAULT_MARKER_COLOR })
-        .setLngLat([stop.lon, stop.lat])
-        .setPopup(
-          new Popup({ offset: 16 }).setHTML(
+    import("leaflet").then(({ default: L }) => {
+      if (cancelled || !containerRef.current) return;
+
+      map = L.map(containerRef.current, { zoomControl: true }).setView(LONDON_CENTER, 10);
+      L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
+
+      for (const stop of stops) {
+        L.marker([stop.lat, stop.lon], { icon: pinIcon(L, stop.lineColor ?? DEFAULT_MARKER_COLOR) })
+          .bindPopup(
             `<a href="/stations/${stop.id}" style="font-weight:600;text-decoration:underline">${escapeHtml(stop.name)}</a>`,
-          ),
-        )
-        .addTo(map),
-    );
+          )
+          .addTo(map);
+      }
 
-    if (stops.length > 0) {
-      const bounds = stops.reduce(
-        (b, stop) => b.extend([stop.lon, stop.lat] as [number, number]),
-        new LngLatBounds([stops[0].lon, stops[0].lat], [stops[0].lon, stops[0].lat]),
-      );
-      map.fitBounds(bounds, { padding: 48, maxZoom, duration: 0 });
-    }
+      if (stops.length > 0) {
+        const bounds = L.latLngBounds(
+          stops.map((stop) => [stop.lat, stop.lon] as [number, number]),
+        );
+        map.fitBounds(bounds, { padding: [48, 48], maxZoom });
+      }
+    });
 
     return () => {
-      for (const marker of markers) marker.remove();
-      map.remove();
+      cancelled = true;
+      map?.remove();
     };
   }, [stops, maxZoom]);
 
