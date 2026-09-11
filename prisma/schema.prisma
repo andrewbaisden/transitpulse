@@ -1,0 +1,141 @@
+// TransitPulse — Phase 1-3 domain schema.
+// See ARCHITECTURE.md for the provider -> ingestion -> Postgres pipeline this
+// schema sits at the end of, and DECISIONS.md for the ADRs behind the
+// modelling choices below (self-referential Stop hierarchy, append-only
+// ServiceStatus, (source, externalRef) provenance instead of a mapping table).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TransportMode {
+  TUBE
+  OVERGROUND
+  ELIZABETH_LINE
+  DLR
+  BUS
+  TRAM
+}
+
+enum StopType {
+  HUB // multi-station interchange complex
+  STATION
+  PLATFORM
+}
+
+enum ServiceStatusLevel {
+  GOOD_SERVICE
+  MINOR_DELAYS
+  SEVERE_DELAYS
+  PART_CLOSURE
+  SUSPENDED
+  SPECIAL_SERVICE
+  UNKNOWN
+}
+
+model Network {
+  id        String   @id @default(cuid())
+  name      String   @unique // "London" — deliberately future-proofs multi-network
+  timezone  String   @default("Europe/London")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines Line[]
+
+  @@map("networks")
+}
+
+model Line {
+  id        String        @id @default(cuid())
+  name      String
+  mode      TransportMode
+  color     String? // hex branding colour, not all sources provide one
+  networkId String
+  network   Network       @relation(fields: [networkId], references: [id])
+
+  // Provenance: which provider populated this row, and that provider's own id
+  // for it. Not a separate mapping table — see DECISIONS.md ADR-005.
+  source      String
+  externalRef String
+
+  stops         LineStop[]
+  serviceStatus ServiceStatus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, externalRef])
+  @@index([mode])
+  @@map("lines")
+}
+
+model Stop {
+  id       String   @id @default(cuid())
+  name     String
+  stopType StopType
+
+  // Self-referential hierarchy (HUB > STATION > PLATFORM), matching TfL's
+  // real StopPoint model so the Phase 4 TfL adapter maps across without a
+  // schema change. See DECISIONS.md ADR-003.
+  parentId String?
+  parent   Stop?   @relation("StopHierarchy", fields: [parentId], references: [id])
+  children Stop[]  @relation("StopHierarchy")
+
+  lat Float?
+  lon Float?
+
+  source      String
+  externalRef String
+
+  lines LineStop[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, externalRef])
+  @@index([stopType])
+  @@index([parentId])
+  @@index([name])
+  @@map("stops")
+}
+
+model LineStop {
+  id       String @id @default(cuid())
+  lineId   String
+  stopId   String
+  sequence Int // ordering of the stop along the line
+
+  line Line @relation(fields: [lineId], references: [id])
+  stop Stop @relation(fields: [stopId], references: [id])
+
+  @@unique([lineId, stopId])
+  @@index([lineId, sequence])
+  @@map("line_stops")
+}
+
+model ServiceStatus {
+  id          String             @id @default(cuid())
+  lineId      String
+  line        Line               @relation(fields: [lineId], references: [id])
+  status      ServiceStatusLevel
+  description String?
+  source      String
+  recordedAt  DateTime // when the status was true, not necessarily row-insert time
+
+  createdAt DateTime @default(now())
+
+  // Append-only: every ingestion run inserts a new row rather than updating
+  // one, so historical reliability aggregation (Phase 7+) is possible
+  // without a migration. Phase 1-3 UI only reads the latest row per line.
+  // The unique constraint makes re-ingesting the same provider snapshot
+  // (same line/source/recordedAt) idempotent, while a genuinely new
+  // recordedAt still appends a new history row.
+  @@unique([lineId, source, recordedAt])
+  @@index([lineId, recordedAt])
+  @@map("service_statuses")
+}
