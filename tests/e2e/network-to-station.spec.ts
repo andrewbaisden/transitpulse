@@ -11,5 +11,9 @@ test("network overview -> line -> station journey", async ({ page }) => {
 
   await page.getByRole("link", { name: "Stratford" }).click();
   await expect(page.getByRole("heading", { name: "Stratford" })).toBeVisible();
-  await expect(page.getByText("Lines")).toBeVisible();
+  // getByText("Lines") is ambiguous here — it also matches the header nav
+  // link and the search box's "Search lines and stations" hidden dialog
+  // description. The station page's "Lines" section is a heading, so
+  // scope to that role specifically.
+  await expect(page.getByRole("heading", { name: "Lines" })).toBeVisible();
 });
