@@ -1,0 +1,17 @@
+{
+  "bank": {
+    "central": [
+      { "timeSlice": "0800-0815", "value": 5 },
+      { "timeSlice": "1200-1215", "value": 3 },
+      { "timeSlice": "1800-1815", "value": 6 }
+    ]
+  },
+  "stratford": {
+    "central": [
+      { "timeSlice": "0800-0815", "value": 4 },
+      { "timeSlice": "1200-1215", "value": 2 },
+      { "timeSlice": "1800-1815", "value": 5 }
+    ],
+    "jubilee": [{ "timeSlice": "0800-0815", "value": 3 }, { "timeSlice": "1800-1815", "value": 4 }]
+  }
+}

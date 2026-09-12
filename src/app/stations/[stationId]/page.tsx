@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { ArrivalBoard } from "@/components/network/arrival-board";
 import { LineBadge } from "@/components/network/line-badge";
 import { NetworkMap } from "@/components/network/network-map";
+import { OccupancySummary } from "@/components/network/occupancy-summary";
 import { StopHierarchyBreadcrumb } from "@/components/network/stop-hierarchy-breadcrumb";
 import { getArrivalBoard } from "@/server/queries/arrivals";
+import { getStationOccupancy } from "@/server/queries/occupancy";
 import { getStationDetail } from "@/server/queries/stops";
 
 export default async function StationDetailPage({
@@ -13,9 +15,10 @@ export default async function StationDetailPage({
   params: Promise<{ stationId: string }>;
 }) {
   const { stationId } = await params;
-  const [station, board] = await Promise.all([
+  const [station, board, occupancies] = await Promise.all([
     getStationDetail(stationId),
     getArrivalBoard(stationId),
+    getStationOccupancy(stationId),
   ]);
 
   if (!station) notFound();
@@ -81,10 +84,7 @@ export default async function StationDetailPage({
         )}
       </div>
 
-      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Crowding and reliability metrics for this station arrive in later phases (see the project
-        roadmap in ARCHITECTURE.md).
-      </div>
+      <OccupancySummary occupancies={occupancies} />
     </div>
   );
 }

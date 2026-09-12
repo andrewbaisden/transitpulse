@@ -3,6 +3,7 @@ import { DemoProvider } from "@/server/providers/demo/demo-provider";
 import {
   ProviderArrivalSchema,
   ProviderLineSchema,
+  ProviderOccupancySchema,
   type TransitProvider,
 } from "@/server/providers/types";
 
@@ -46,12 +47,29 @@ describe("DemoProvider", () => {
     }
   });
 
-  it("does not implement vehicles/occupancy (no Phase 1-9 feature needs them)", () => {
+  it("does not implement vehicles (no Phase 1-9 feature needs it yet)", () => {
     // Typed as the interface, not the concrete class: these methods are
     // optional on TransitProvider precisely so a provider can omit them.
     const provider: TransitProvider = new DemoProvider();
     expect(provider.getVehicles).toBeUndefined();
-    expect(provider.getOccupancy).toBeUndefined();
+  });
+
+  it("returns occupancy matching the provider schema", async () => {
+    const provider = new DemoProvider();
+    const occupancy = await provider.getOccupancy?.("bank", "central");
+
+    expect(occupancy?.length).toBeGreaterThan(0);
+    for (const entry of occupancy ?? []) {
+      expect(() => ProviderOccupancySchema.parse(entry)).not.toThrow();
+    }
+    expect(occupancy?.[0].timeSlice).toBe("0800-0815");
+    expect(occupancy?.[0].level).toBe(5);
+  });
+
+  it("returns an empty array for a stop/line pair with no occupancy fixture, not an error", async () => {
+    const provider = new DemoProvider();
+    expect(await provider.getOccupancy?.("bank", "jubilee")).toEqual([]);
+    expect(await provider.getOccupancy?.("does-not-exist", "central")).toEqual([]);
   });
 
   it("returns arrivals matching the provider schema, with expectedArrival resolved against now", async () => {

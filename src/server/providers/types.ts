@@ -75,10 +75,16 @@ export const ProviderVehicleSchema = z.object({
 });
 export type ProviderVehicle = z.infer<typeof ProviderVehicleSchema>;
 
+// TfL's real Crowding API is per (stop, line), returns static/historical
+// "typical for this time" data only, and has no bulk "all stops" form —
+// hence the params below and no stopExternalId/lineExternalId per entry
+// (the caller already knows both). `level` allows 0 because TfL's live
+// data includes it despite documenting only a 1-6 scale — see
+// DECISIONS.md ADR-020 for why 0 is treated as "no reading" rather than a
+// guessed meaning.
 export const ProviderOccupancySchema = z.object({
-  stopExternalId: z.string().min(1),
-  level: z.string().min(1),
-  recordedAt: z.iso.datetime({ offset: true }),
+  timeSlice: z.string().min(1), // e.g. "0800-0815"
+  level: z.number().int().min(0).max(6),
 });
 export type ProviderOccupancy = z.infer<typeof ProviderOccupancySchema>;
 
@@ -98,5 +104,5 @@ export interface TransitProvider {
   getServiceStatus(): Promise<ProviderServiceStatus[]>;
   getArrivals?(stopExternalId: string): Promise<ProviderArrival[]>;
   getVehicles?(): Promise<ProviderVehicle[]>;
-  getOccupancy?(): Promise<ProviderOccupancy[]>;
+  getOccupancy?(stopExternalId: string, lineExternalId: string): Promise<ProviderOccupancy[]>;
 }

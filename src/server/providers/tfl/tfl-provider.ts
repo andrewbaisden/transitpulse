@@ -3,6 +3,8 @@ import {
   ProviderArrivalSchema,
   type ProviderLine,
   ProviderLineSchema,
+  type ProviderOccupancy,
+  ProviderOccupancySchema,
   type ProviderServiceStatus,
   ProviderServiceStatusSchema,
   type ProviderStop,
@@ -11,6 +13,7 @@ import {
 } from "@/server/providers/types";
 import {
   TflArrivalRawSchema,
+  TflCrowdingRawSchema,
   TflHubStopPointRawSchema,
   TflLineRawSchema,
   TflLineWithStatusRawSchema,
@@ -226,6 +229,22 @@ export class TflProvider implements TransitProvider {
     );
   }
 
-  // getVehicles / getOccupancy intentionally not implemented — reserved for
-  // Phase 9-10.
+  async getOccupancy(stopExternalId: string, lineExternalId: string): Promise<ProviderOccupancy[]> {
+    const raw = await tflRequest(
+      this.url(`/StopPoint/${stopExternalId}/Crowding/${lineExternalId}?direction=all`),
+      TflCrowdingRawSchema,
+    );
+
+    // The response includes every line serving the stop (only the
+    // requested one carries populated crowding data) — match by id rather
+    // than assuming array position/order.
+    const matchingLine = raw.lines.find((line) => line.id === lineExternalId);
+    const loadings = matchingLine?.crowding?.trainLoadings ?? [];
+
+    return loadings.map((loading) =>
+      ProviderOccupancySchema.parse({ timeSlice: loading.timeSlice, level: loading.value }),
+    );
+  }
+
+  // getVehicles intentionally not implemented — reserved for Phase 10.
 }

@@ -6,6 +6,8 @@ import {
   ProviderArrivalSchema,
   type ProviderLine,
   ProviderLineSchema,
+  type ProviderOccupancy,
+  ProviderOccupancySchema,
   type ProviderServiceStatus,
   ProviderServiceStatusSchema,
   type ProviderStop,
@@ -44,6 +46,20 @@ const ArrivalFixtureEntrySchema = z.object({
 });
 const ArrivalsFixtureSchema = z.record(z.string(), z.array(ArrivalFixtureEntrySchema));
 
+// occupancy.json maps stopExternalId -> lineExternalId -> a handful of
+// {timeSlice, value} entries — static, unlike arrivals, since crowding is
+// historical/typical-for-this-time data (TfL's own Crowding endpoint is
+// the same shape). Sparse coverage is deliberate and honest: a time slice
+// with no matching entry correctly falls through to "not available."
+const OccupancyFixtureEntrySchema = z.object({
+  timeSlice: z.string().min(1),
+  value: z.number().int().min(1).max(6),
+});
+const OccupancyFixtureSchema = z.record(
+  z.string(),
+  z.record(z.string(), z.array(OccupancyFixtureEntrySchema)),
+);
+
 export class DemoProvider implements TransitProvider {
   readonly sourceName = "demo";
 
@@ -75,7 +91,17 @@ export class DemoProvider implements TransitProvider {
     );
   }
 
-  // getVehicles / getOccupancy intentionally not implemented — no Phase 1-9
-  // feature needs them yet (they're optional on the TransitProvider
-  // interface for exactly this reason).
+  async getOccupancy(stopExternalId: string, lineExternalId: string): Promise<ProviderOccupancy[]> {
+    const raw = await readFile(path.join(FIXTURES_DIR, "occupancy.json"), "utf-8");
+    const byStop = OccupancyFixtureSchema.parse(JSON.parse(raw));
+    const entries = byStop[stopExternalId]?.[lineExternalId] ?? [];
+
+    return entries.map((entry) =>
+      ProviderOccupancySchema.parse({ timeSlice: entry.timeSlice, level: entry.value }),
+    );
+  }
+
+  // getVehicles intentionally not implemented — no Phase 1-9 feature needs
+  // it yet (it's optional on the TransitProvider interface for exactly
+  // this reason).
 }

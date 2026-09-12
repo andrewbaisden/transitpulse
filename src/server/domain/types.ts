@@ -62,3 +62,11 @@ export interface DomainArrival {
   // src/server/domain/live/), not ingested into Postgres.
   source: string;
 }
+
+export interface DomainOccupancy {
+  timeSlice: string;
+  level: number; // 1-6, TfL's own train-loading scale
+  // Provenance (ADR-005). Never persisted — see DECISIONS.md ADR-020 for
+  // why crowding is fetched live per request like arrivals, not ingested.
+  source: string;
+}

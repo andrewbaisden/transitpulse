@@ -2,16 +2,18 @@
 
 ## Status
 
-This describes the system as built through **Phase 8** (static network
+This describes the system as built through **Phase 9** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, an
 interactive Leaflet map at `/map` plus a per-station location embed,
 both backed by `getMapStops` over existing `lat`/`lon` — ADR-016/ADR-017 —,
 a recurring status-history sampler over the existing append-only
-`ServiceStatus` table, `pnpm db:sample:tfl` — ADR-018 —, and a
+`ServiceStatus` table, `pnpm db:sample:tfl` — ADR-018 —, a
 time-weighted per-line reliability figure computed on demand from that
-history, `getLineReliability` — ADR-019), plus
+history, `getLineReliability` — ADR-019 —, and a per-station crowding
+section, `getStationOccupancy`, fetched live from TfL's real (static,
+never live) Crowding data — ADR-020), plus
 the target shape for later phases so the current design can be checked
 against where it needs to go. See [Roadmap](#roadmap-phases-4-15) for
 what's *not* built yet.
@@ -59,7 +61,7 @@ interface TransitProvider {
   getServiceStatus(): Promise<ProviderServiceStatus[]>;
   getArrivals?(stopExternalId: string): Promise<ProviderArrival[]>;
   getVehicles?(): Promise<ProviderVehicle[]>;
-  getOccupancy?(): Promise<ProviderOccupancy[]>;
+  getOccupancy?(stopExternalId: string, lineExternalId: string): Promise<ProviderOccupancy[]>;
 }
 ```
 
@@ -71,12 +73,14 @@ a TfL adapter's HTTP response would.
 
 `getArrivals` / `getVehicles` / `getOccupancy` are optional on the
 interface so it didn't need to change shape when a phase actually
-implements one. `getArrivals` is now implemented (Phase 5, ✅ below) on
-both `DemoProvider` and `TflProvider` — see
-`src/server/domain/live/get-stop-arrivals.ts` for how it's called (a
-live, non-persisted per-request read, not ingestion; ADR-015).
-`getVehicles`/`getOccupancy` remain unimplemented, reserved for later
-phases.
+implements one. `getArrivals` (Phase 5, ✅) and `getOccupancy` (Phase 9, ✅)
+are both implemented on `DemoProvider` and `TflProvider` — see
+`src/server/domain/live/get-stop-arrivals.ts` and `get-stop-occupancy.ts`
+for how each is called (a live, non-persisted per-request read, not
+ingestion; ADR-015/ADR-020). `getOccupancy`'s params were added when it
+was actually implemented — TfL's real Crowding API is per (stop, line)
+with no bulk form, so the original no-args stub was corrected rather than
+kept. `getVehicles` remains unimplemented, reserved for Phase 10.
 
 ## Domain model
 
@@ -120,9 +124,15 @@ Network 1──* Line 1──* LineStop *──1 Stop (self-referential: HUB > S
   form that still gives traceability and idempotent upserts. See
   DECISIONS.md ADR-005.
 - **Deliberately not modeled yet**: `Route` (beyond `LineStop.sequence`),
-  `Trip`, `Vehicle`, `ArrivalPrediction`, `Occupancy`, `Disruption`,
-  `Reliability`/`CrowdingSnapshot`, `User`/`Favourite`/`Alert`. These get
-  added in the phase that actually needs them.
+  `Trip`, `Vehicle`, `ArrivalPrediction`, `Disruption`,
+  `User`/`Favourite`/`Alert`. These get added in the phase that actually
+  needs them.
+- **Deliberately never modeled as tables**: `Reliability` and `Occupancy`
+  were both named in the original roadmap as future "entities," but
+  Phases 8 and 9 computed them on demand instead (a time-weighted %
+  from `ServiceStatus` history, and a live per-station call to TfL's
+  Crowding API) rather than adding persisted tables — see DECISIONS.md
+  ADR-019 and ADR-020 for why in each case.
 
 ## PostgreSQL vs Redis
 
@@ -183,7 +193,7 @@ suited to long-lived queue consumers.
 | 6 | ✅ Leaflet map layer over existing `lat`/`lon` (originally MapLibre — ADR-017) |
 | 7 | ✅ Historical sampling of real observations — delay only; arrival error deferred (ADR-018) |
 | 8 | ✅ Reliability methodology — time-weighted % good service, computed on demand (ADR-019) |
-| 9 | `Occupancy` entity, `getOccupancy`, crowding source/confidence model |
+| 9 | ✅ Crowding source/confidence model — live per-station lookup of TfL's static data, not a persisted entity (ADR-020) |
 | 10 | Redis, BullMQ sync workers, realtime broadcast — worker/monorepo split decided here |
 | 11 | Explainable anomaly detection (deviation from rolling baseline) |
 | 12 | Arrival/reliability prediction, evaluated against actual outcomes |

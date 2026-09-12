@@ -3,12 +3,14 @@ import {
   NormalizationError,
   normalizeArrival,
   normalizeLine,
+  normalizeOccupancy,
   normalizeServiceStatus,
   normalizeStop,
 } from "@/server/domain/ingestion/normalize";
 import type {
   ProviderArrival,
   ProviderLine,
+  ProviderOccupancy,
   ProviderServiceStatus,
   ProviderStop,
 } from "@/server/providers/types";
@@ -134,6 +136,21 @@ describe("normalizeArrival", () => {
       destinationName: "Ealing Broadway",
       expectedArrival: new Date("2026-09-11T19:53:24Z"),
       source: "demo",
+    });
+  });
+});
+
+describe("normalizeOccupancy", () => {
+  it("maps fields through as-is, no vocabulary translation", () => {
+    const providerOccupancy: ProviderOccupancy = {
+      timeSlice: "0800-0815",
+      level: 5,
+    };
+
+    expect(normalizeOccupancy(providerOccupancy, "tfl")).toEqual({
+      timeSlice: "0800-0815",
+      level: 5,
+      source: "tfl",
     });
   });
 });

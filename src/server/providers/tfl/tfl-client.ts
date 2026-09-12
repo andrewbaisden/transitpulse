@@ -67,6 +67,32 @@ export const TflHubStopPointRawSchema = z.object({
   lon: z.number().optional(),
 });
 
+// TfL's Crowding response (verified against the live API, not just its
+// Swagger spec, which describes a different shape) is a single StopPoint
+// object whose `lines` array carries a `crowding.trainLoadings` entry per
+// line — static historical data by 15-minute time slice, not live
+// occupancy. `direction=all` returns separate inbound/outbound entries
+// for the same time slice rather than merging them, and `value` can be 0
+// (undocumented — not part of TfL's own stated 1-6 scale). See
+// DECISIONS.md ADR-020 for how both are handled.
+export const TflTrainLoadingRawSchema = z.object({
+  timeSlice: z.string().min(1),
+  value: z.number().int().min(0).max(6),
+});
+
+export const TflCrowdingLineRawSchema = z.object({
+  id: z.string().min(1),
+  crowding: z
+    .object({
+      trainLoadings: z.array(TflTrainLoadingRawSchema).optional().default([]),
+    })
+    .optional(),
+});
+
+export const TflCrowdingRawSchema = z.object({
+  lines: z.array(TflCrowdingLineRawSchema).optional().default([]),
+});
+
 /** Strips `app_key` before a URL is ever included in a thrown error. */
 function redact(url: string): string {
   const u = new URL(url);

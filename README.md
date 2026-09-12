@@ -4,14 +4,16 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–8 of 15.** A static network explorer with a
+> **Current status: Phases 1–9 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
 > map at `/map` plus a per-station location embed (ADR-017), a
-> recurring status-history sampler (`pnpm db:sample:tfl`, ADR-018), and a
+> recurring status-history sampler (`pnpm db:sample:tfl`, ADR-018), a
 > time-weighted reliability figure per line computed on demand from that
-> history (ADR-019). No crowding or prediction yet (see
+> history (ADR-019), and a per-station crowding section using TfL's real
+> (static/historical, never live) typical-crowding data, explicitly
+> labelled as such (ADR-020). No prediction yet (see
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned).
 
@@ -148,9 +150,18 @@ few hours of history honestly reports that coverage rather than a
 fabricated 7-day figure, shown via a `ReliabilitySummary` card on each
 line's detail page. See DECISIONS.md ADR-019.
 
-Phases 9–15 are architected for but not yet built: crowding/occupancy,
-realtime infrastructure, anomaly detection, arrival prediction, a
-simulation provider, personalisation, and production observability. See
+Phase 9 adds a crowding section per station: `getStationOccupancy`
+(`src/server/queries/occupancy.ts`) calls TfL's real Crowding API live,
+once per line serving that station — TfL's own 1-6 "typical for this
+time" scale, kept as-is rather than converted into an invented
+percentage, and always shown with a `confidence: "typical"` label so it's
+never mistaken for a live measurement (there is no live occupancy API to
+measure from). No new table — fetched on demand like arrivals, not
+ingested. See DECISIONS.md ADR-020.
+
+Phases 10–15 are architected for but not yet built: realtime
+infrastructure, anomaly detection, arrival prediction, a simulation
+provider, personalisation, and production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

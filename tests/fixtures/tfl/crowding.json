@@ -1,0 +1,17 @@
+{
+  "lines": [
+    { "id": "bakerloo", "crowding": {} },
+    {
+      "id": "central",
+      "crowding": {
+        "trainLoadings": [
+          { "timeSlice": "0800-0815", "value": 5, "direction": "Inbound" },
+          { "timeSlice": "0800-0815", "value": 5, "direction": "Outbound" },
+          { "timeSlice": "1200-1215", "value": 3, "direction": "Inbound" },
+          { "timeSlice": "1800-1815", "value": 6, "direction": "Inbound" },
+          { "timeSlice": "0530-0545", "value": 0, "direction": "Inbound" }
+        ]
+      }
+    }
+  ]
+}

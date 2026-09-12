@@ -1,6 +1,7 @@
 import type {
   DomainArrival,
   DomainLine,
+  DomainOccupancy,
   DomainServiceStatus,
   DomainStop,
   ServiceStatusLevel,
@@ -9,6 +10,7 @@ import type {
 import type {
   ProviderArrival,
   ProviderLine,
+  ProviderOccupancy,
   ProviderServiceStatus,
   ProviderStop,
 } from "@/server/providers/types";
@@ -144,6 +146,19 @@ export function normalizeArrival(
     lineExternalRef: providerArrival.lineExternalId,
     destinationName: providerArrival.destinationName,
     expectedArrival: new Date(providerArrival.expectedArrival),
+    source: sourceName,
+  };
+}
+
+// Direct field mapping — TfL's 1-6 train-loading scale is used as-is, no
+// vocabulary translation needed. See DECISIONS.md ADR-020.
+export function normalizeOccupancy(
+  providerOccupancy: ProviderOccupancy,
+  sourceName: string,
+): DomainOccupancy {
+  return {
+    timeSlice: providerOccupancy.timeSlice,
+    level: providerOccupancy.level,
     source: sourceName,
   };
 }

@@ -618,3 +618,110 @@ dependency. New files: `src/server/domain/reliability/calculate-reliability.ts`
 `tests/components/reliability-summary.test.tsx`).
 
 **Status.** Accepted.
+
+---
+
+## ADR-020: Occupancy — live per-station lookup of TfL's static crowding data, never presented as measured
+
+**Context.** The roadmap names Phase 9 as "`Occupancy` entity,
+`getOccupancy`, crowding source/confidence model." AGENTS.md's
+non-negotiable rule: "Never treat estimated/simulated crowding as official
+measured occupancy. Every crowding value must carry a source/confidence
+field." Before designing anything, TfL's actual public Swagger spec was
+checked (not assumed): the only Crowding endpoint,
+`/StopPoint/{id}/Crowding/{line}?direction=...`, is documented as
+returning **static** data — a `trainLoadings` array of `{timeSlice:
+"HHMM-HHMM", value: 1-6}` (1 = Very quiet, 6 = Exceptionally busy),
+i.e. typical crowding by time-of-day, not live per-train occupancy. There
+is no bulk "all stops" form of this endpoint — it's strictly per
+(station, line).
+
+**The Swagger spec turned out to be an incomplete guide to the real
+response** — caught by testing against the live API with a real
+`TFL_APP_KEY`, not just the fixture-based provider tests, which initially
+showed every station's crowding as "Not available" even for stations that
+plainly have data:
+
+1. The real response is a **single StopPoint object** whose `lines` array
+   carries a `crowding.trainLoadings` entry per line (only the requested
+   line's entry is populated) — not an array of StopPoint objects as the
+   Swagger schema declares. `TflCrowdingRawSchema` in `tfl-client.ts`
+   matches the real shape; `TflProvider.getOccupancy` finds the matching
+   line by `id` rather than assuming array position.
+2. `direction=all` does not merge inbound/outbound — it returns **two
+   separate entries per time slice**, one per direction. `getCurrentOccupancy`
+   averages (rounded) every entry matching the current time slice instead
+   of picking one direction arbitrarily.
+3. `value` can be **0**, despite the docs only stating a 1-6 scale, and
+   its real meaning isn't documented anywhere found. Rather than guess
+   (e.g. "0 = no service" or folding it into "Very quiet"),
+   `getCurrentOccupancy` excludes level-0 entries before averaging —
+   treated as "no reading," honestly falling through to `null`
+   ("not available") if nothing else covers that slice. `level`'s schema
+   bound widened to `0-6` so a real response isn't rejected outright.
+
+This is the concrete lesson: a Swagger spec (even TfL's own) describes
+what an API is *supposed* to return, not proof of what it actually
+returns — verify against a live call before shipping, not just against
+hand-built fixtures that encode the same assumption the spec did.
+
+**Decision.**
+
+- **Live per-station lookup, not bulk ingestion.** `getOccupancy` is
+  called on demand, once per line serving a station, when that station's
+  page is viewed — extending the same "live, non-persisted per-request
+  read" pattern ADR-015 established for arrivals
+  (`src/server/domain/live/get-stop-occupancy.ts`, alongside
+  `get-stop-arrivals.ts`) to a second data type. Rejected bulk-ingesting a
+  new `Occupancy` table across the ~600 already-synced TfL stations: there
+  is no bulk endpoint to ingest from (it would mean one API call per
+  (stop, line) pair — hundreds to over a thousand), and TfL's real-world
+  coverage of this data across every station/mode (especially DLR,
+  Overground, Tram) is unknown and likely partial, making a large,
+  slow, failure-prone ingestion job a poor trade for uncertain benefit. A
+  per-line try/catch in `getStationOccupancy`
+  (`src/server/queries/occupancy.ts`) means one line lacking data — a
+  real, expected outcome — never breaks the others.
+- **Changed the pre-existing `getOccupancy?(): Promise<ProviderOccupancy[]>`
+  stub to `getOccupancy?(stopExternalId, lineExternalId):
+  Promise<ProviderOccupancy[]>`.** The old no-args shape assumed a bulk
+  endpoint that doesn't exist. Safe to change: nothing depended on the old
+  shape (the only two references were tests asserting it was `undefined`
+  on both providers), so this corrects a pre-implementation stub to match
+  the real API rather than breaking a real caller.
+- **Kept TfL's own 1-6 qualitative scale as-is**
+  (`CROWDING_LEVEL_LABELS` in
+  `src/server/domain/occupancy/current-occupancy.ts`), not converted to a
+  percentage. "Fairly busy" is what TfL actually reports; a specific %
+  figure for that bucket would be a number TransitPulse invented, not
+  data TfL provides — the concrete instantiation of the non-negotiable
+  crowding rule above.
+- **Every computed value carries `confidence: "typical"` and `source`**
+  (`CurrentOccupancy`) — literal, not a range, since this is always
+  historical/typical data from this single methodology today. The UI
+  (`OccupancySummary`) makes this explicit ("Typical for this time (TfL
+  historical data)") rather than presenting a bare number.
+- **`getCurrentOccupancy` never guesses a nearby slice** — a London-local
+  "HHmm" (from `formatLondonTime(now, "HHmm")`, the only new caller of
+  that formatter — no new `date-fns-tz` import, per ADR-010) is floored to
+  its 15-minute bucket and matched exactly; no match means an honest
+  `null` ("not available"), not an approximation from an adjacent slice.
+- **UI**: `OccupancySummary` replaces the Phase 1-3 placeholder on
+  `src/app/stations/[stationId]/page.tsx` ("Crowding and reliability
+  metrics for this station arrive in later phases").
+
+**Consequences.** No Prisma schema change, no migration, no new
+dependency. New files: `src/server/domain/occupancy/current-occupancy.ts`
+(pure, unit-tested —
+`tests/unit/domain/occupancy/current-occupancy.test.ts`),
+`src/server/domain/live/get-stop-occupancy.ts`,
+`src/server/queries/occupancy.ts` (integration-tested —
+`tests/unit/server/queries/occupancy.test.ts`), and
+`src/components/network/occupancy-summary.tsx` (RTL-tested —
+`tests/components/occupancy-summary.test.tsx`). `ProviderOccupancySchema`
+redefined to match TfL's real shape; `TflProvider`/`DemoProvider` both now
+implement `getOccupancy` (existing "does not implement vehicles/occupancy"
+tests updated accordingly — `getVehicles` is still unimplemented,
+reserved for Phase 10).
+
+**Status.** Accepted.

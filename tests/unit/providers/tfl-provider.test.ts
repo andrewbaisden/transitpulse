@@ -6,6 +6,7 @@ import { TflProvider } from "@/server/providers/tfl/tfl-provider";
 import {
   ProviderArrivalSchema,
   ProviderLineSchema,
+  ProviderOccupancySchema,
   ProviderServiceStatusSchema,
   ProviderStopSchema,
   type TransitProvider,
@@ -26,13 +27,14 @@ async function fixture(fileName: string): Promise<unknown> {
  * dedup of a stop shared by two lines, and status severity mapping.
  */
 async function stubTflFetch() {
-  const [lines, status, central, jubilee, hub, arrivals] = await Promise.all([
+  const [lines, status, central, jubilee, hub, arrivals, crowding] = await Promise.all([
     fixture("lines.json"),
     fixture("status.json"),
     fixture("route-sequence-central.json"),
     fixture("route-sequence-jubilee.json"),
     fixture("hub.json"),
     fixture("arrivals.json"),
+    fixture("crowding.json"),
   ]);
 
   vi.stubGlobal(
@@ -62,6 +64,9 @@ async function stubTflFetch() {
       }
       if (url.includes("/StopPoint/stratford/Arrivals")) {
         return json(arrivals);
+      }
+      if (url.includes("/StopPoint/stratford/Crowding/central")) {
+        return json(crowding);
       }
       return new Response("not found", { status: 404 });
     }),
@@ -176,12 +181,11 @@ describe("TflProvider", () => {
     await expect(provider.getLines()).rejects.toThrow(TflProviderError);
   });
 
-  it("does not implement vehicles/occupancy yet (Phase 9+)", () => {
+  it("does not implement vehicles yet (Phase 10+)", () => {
     // Typed as the interface, not the concrete class: these methods are
     // optional on TransitProvider precisely so a provider can omit them.
     const provider: TransitProvider = new TflProvider({ appKey: "test-key" });
     expect(provider.getVehicles).toBeUndefined();
-    expect(provider.getOccupancy).toBeUndefined();
   });
 
   it("maps arrivals through the provider schema", async () => {
@@ -196,5 +200,17 @@ describe("TflProvider", () => {
     expect(arrivals[0].lineExternalId).toBe("central");
     expect(arrivals[0].destinationName).toBe("West Ruislip Underground Station");
     expect(arrivals[0].expectedArrival).toBe("2026-09-11T19:53:24Z");
+  });
+
+  it("maps occupancy through the provider schema", async () => {
+    const provider = new TflProvider({ appKey: "test-key" });
+    const occupancy = await provider.getOccupancy?.("stratford", "central");
+
+    expect(occupancy?.length).toBeGreaterThan(0);
+    for (const entry of occupancy ?? []) {
+      expect(() => ProviderOccupancySchema.parse(entry)).not.toThrow();
+    }
+    expect(occupancy?.[0].timeSlice).toBe("0800-0815");
+    expect(occupancy?.[0].level).toBe(5);
   });
 });
