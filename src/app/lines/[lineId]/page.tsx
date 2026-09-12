@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AnomalyBanner } from "@/components/network/anomaly-banner";
 import { LineStatusCard } from "@/components/network/line-status-card";
 import { ModeIcon, modeLabel } from "@/components/network/mode-icon";
 import { ReliabilitySummary } from "@/components/network/reliability-summary";
+import { getLineAnomaly } from "@/server/queries/anomaly";
 import { getLineDetail } from "@/server/queries/lines";
 import { getLineReliability } from "@/server/queries/reliability";
 
@@ -16,7 +18,10 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
 
   if (!line) notFound();
 
-  const reliability = await getLineReliability(lineId);
+  const [reliability, anomaly] = await Promise.all([
+    getLineReliability(lineId),
+    getLineAnomaly(lineId),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -41,6 +46,8 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
         description={line.statusDescription}
         recordedAt={line.statusRecordedAt}
       />
+
+      <AnomalyBanner anomaly={anomaly} />
 
       <ReliabilitySummary reliability={reliability} />
 

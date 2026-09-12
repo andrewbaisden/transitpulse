@@ -4,7 +4,7 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–10 of 15.** A static network explorer with a
+> **Current status: Phases 1–11 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
@@ -12,10 +12,11 @@ and disruption context on top of live service data, not just "next train in
 > time-weighted reliability figure per line computed on demand from
 > `ServiceStatus` history (ADR-019), a per-station crowding section using
 > TfL's real (static/historical, never live) typical-crowding data,
-> explicitly labelled as such (ADR-020), and a BullMQ worker
-> (`pnpm worker`) that replaced the manual sync scripts, publishing real
-> status changes over Redis so open pages live-patch their status badges
-> via Server-Sent Events (ADR-021). No prediction yet (see
+> explicitly labelled as such (ADR-020), a BullMQ worker (`pnpm worker`)
+> publishing real status changes over Redis so open pages live-patch their
+> status badges via Server-Sent Events (ADR-021), and explainable,
+> threshold-based anomaly detection comparing a line's last 24h against
+> its own 7-day baseline (ADR-022). No prediction yet (see
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned).
 
@@ -171,9 +172,18 @@ live-patches without a refresh (Zustand, installed since Phase 1-3,
 finally has a use case). No monorepo split — the worker is a second
 process in the same package. See DECISIONS.md ADR-021.
 
-Phases 11–15 are architected for but not yet built: anomaly detection,
-arrival prediction, a simulation provider, personalisation, and
-production observability. See
+Phase 11 adds explainable anomaly detection: `getLineAnomaly`
+(`src/server/queries/anomaly.ts`) compares a line's last 24h reliability
+against its own rolling 7-day baseline (both computed via the existing
+`calculateReliability`, ADR-019) and flags it when the deviation clears
+15 points with enough recent coverage to be meaningful. No statistical
+model — the "explanation" is just the two percentages being compared, so
+it's never a black box. Computed on demand, no new table. See
+DECISIONS.md ADR-022.
+
+Phases 12–15 are architected for but not yet built: arrival prediction,
+a simulation provider, personalisation, and production observability.
+See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

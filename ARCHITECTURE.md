@@ -2,7 +2,7 @@
 
 ## Status
 
-This describes the system as built through **Phase 10** (static network
+This describes the system as built through **Phase 11** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, an
@@ -11,10 +11,12 @@ both backed by `getMapStops` over existing `lat`/`lon` — ADR-016/ADR-017 —,
 a time-weighted per-line reliability figure computed on demand from
 `ServiceStatus` history, `getLineReliability` — ADR-019 —, a per-station
 crowding section, `getStationOccupancy`, fetched live from TfL's real
-(static, never live) Crowding data — ADR-020 —, and a BullMQ worker
+(static, never live) Crowding data — ADR-020 —, a BullMQ worker
 (`worker/index.ts`, `pnpm worker`) running the sync/sample jobs on Redis,
 publishing real status changes over pub/sub so open pages live-patch
-their status badges via Server-Sent Events — ADR-021), plus
+their status badges via Server-Sent Events — ADR-021 —, and explainable
+anomaly detection comparing a line's last-24h reliability against its own
+rolling 7-day baseline, `getLineAnomaly` — ADR-022), plus
 the target shape for later phases so the current design can be checked
 against where it needs to go. See [Roadmap](#roadmap-phases-4-15) for
 what's *not* built yet.
@@ -81,7 +83,9 @@ for how each is called (a live, non-persisted per-request read, not
 ingestion; ADR-015/ADR-020). `getOccupancy`'s params were added when it
 was actually implemented — TfL's real Crowding API is per (stop, line)
 with no bulk form, so the original no-args stub was corrected rather than
-kept. `getVehicles` remains unimplemented, reserved for Phase 10.
+kept. `getVehicles` remains unimplemented — no phase through 11 has
+needed live vehicle positions; Phase 13's `SimulationProvider` is the
+next candidate that might.
 
 ## Domain model
 
@@ -200,7 +204,7 @@ function timeout — worth checking once deployment is actually configured.
 | 8 | ✅ Reliability methodology — time-weighted % good service, computed on demand (ADR-019) |
 | 9 | ✅ Crowding source/confidence model — live per-station lookup of TfL's static data, not a persisted entity (ADR-020) |
 | 10 | ✅ Redis, BullMQ sync workers, realtime status badges via SSE — no monorepo split needed (ADR-021) |
-| 11 | Explainable anomaly detection (deviation from rolling baseline) |
+| 11 | ✅ Explainable anomaly detection — threshold deviation from a rolling baseline (ADR-022) |
 | 12 | Arrival/reliability prediction, evaluated against actual outcomes |
 | 13 | `SimulationProvider` implementing the same interface — scenario simulation |
 | 14 | Auth (Better Auth or Clerk), `User`/`Favourite`, personalisation |

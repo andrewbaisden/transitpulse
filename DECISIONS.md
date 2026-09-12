@@ -821,3 +821,49 @@ live-patched an open line detail page's status badge in a real browser
 with no refresh.
 
 **Status.** Accepted.
+
+---
+
+## ADR-022: Explainable anomaly detection — threshold deviation from a rolling baseline, not a statistical model
+
+**Context.** The roadmap names Phase 11 as "Explainable anomaly detection
+(deviation from rolling baseline)." "Explainable" is the operative word —
+whatever flags an anomaly needs to show its work, not just assert one.
+
+**Decision.**
+
+- **Reuse `calculateReliability` (ADR-019) for both windows being
+  compared**, rather than writing new windowing/coverage logic:
+  `getLineAnomaly` (`src/server/queries/anomaly.ts`) computes a line's
+  last-24h reliability ("recent") and its prior-7-days reliability
+  ("baseline", the 7 days immediately before the recent window, not
+  overlapping it), then hands both `ReliabilityResult`s to a pure
+  `detectAnomaly` function.
+- **Threshold-based, not statistical.** An anomaly fires when
+  `baseline% - recent% >= 15 points` and the recent window has at least
+  2 hours of real coverage (so a handful of minutes of data can't trigger
+  a false alarm). No z-scores, no learned model — "explainable" here
+  means the explanation *is* the two numbers being compared
+  (`src/server/domain/anomaly/detect-anomaly.ts`'s `explanation` string),
+  not a black box a reader has to trust.
+- **Computed on demand**, same reasoning as ADR-019/ADR-020: no new
+  table, no background job — cheap to compute from the same
+  `ServiceStatus` rows Phase 8 already reads.
+- **`ANOMALY_ALGORITHM_VERSION`**, same convention as
+  `RELIABILITY_ALGORITHM_VERSION` — this is now a second
+  reliability-adjacent algorithm, so AGENTS.md's "never change
+  reliability/prediction algorithms without tests and a DECISIONS.md
+  entry" rule applies to it from here on.
+- **UI**: a new `AnomalyBanner` renders only when an anomaly is actually
+  detected — no "all clear" banner, no placeholder for missing data
+  (that's `ReliabilitySummary`'s job already). Given how little real
+  history exists at this point in the project, most lines will show
+  nothing here for a while — that's the honest, expected state, not a
+  bug.
+
+**Consequences.** No schema change, no migration, no new dependency. New
+files: `src/server/domain/anomaly/detect-anomaly.ts` (pure, unit-tested),
+`src/server/queries/anomaly.ts` (integration-tested against the real test
+DB), `src/components/network/anomaly-banner.tsx` (RTL-tested).
+
+**Status.** Accepted.
