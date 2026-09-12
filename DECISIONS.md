@@ -474,3 +474,73 @@ tooling) that tiles, roads, and labels now paint correctly with no API-key
 watermark.
 
 **Status.** Accepted.
+
+---
+
+## ADR-018: Phase 7 status-history sampling — delay only, reusing `ServiceStatus`, no scheduler
+
+**Context.** The roadmap scopes Phase 7 as "historical sampling of real
+observations (delay, arrival error)." Arrival error would mean measuring
+predicted-vs-actual arrival time, but TfL's live API only ever returns
+predictions — it never confirms an arrival happened. The only way to infer
+"actual" would be polling the same stop repeatedly and treating a specific
+vehicle's countdown disappearing (or hitting ~0) as a proxy for arrival,
+which is an *inferred* value bounded by poll interval, not a measured one.
+Building that honestly — with its own labelled confidence, distinct from
+real measured data (this project's non-negotiable "never fabricate
+realtime values" rule) — is a bigger design decision than fits this phase,
+so it's deferred rather than shipped half-considered.
+
+**Decision.**
+
+- **Delay only for Phase 7.** Arrival-error inference is explicitly
+  deferred, not forgotten — revisit once there's a concrete, honest way to
+  label an inferred actual-arrival time's confidence.
+- **No new table.** `ServiceStatus` was already designed append-only from
+  Phase 1 specifically so "later reliability phases get historical data
+  for free, without a migration" (ADR-004). Phase 7 is exactly that later
+  phase: it turns the existing table into a real growing history by
+  running the existing `ingestServiceStatus` on a recurring cadence,
+  rather than inventing an `Observation`/`StatusSample` table that would
+  just duplicate it.
+- **Dedup fix in `ingestServiceStatus` itself**
+  (`src/server/domain/ingestion/ingest-service-status.ts`): before
+  upserting, it now checks the most recently recorded row for that
+  `(lineId, source)` and skips writing if the status/description are
+  unchanged, regardless of `recordedAt`. Needed because
+  `TflProvider.getServiceStatus()` derives `recordedAt` from TfL's own
+  `validityPeriod` when present, but falls back to poll-time
+  (`new Date().toISOString()`) when TfL omits one — which is the common
+  case for routine "Good Service." Without this fix, polling an
+  undisrupted line every few minutes would append a new near-duplicate row
+  per poll forever (since `recordedAt` differs each time and is part of
+  the row's uniqueness key), turning one continuous period of good service
+  into hundreds of rows and corrupting the exact history Phase 8's
+  reliability methodology will aggregate. This also retroactively benefits
+  `db:sync:tfl`, which had the same latent issue whenever re-run by hand.
+- **`prisma/sample-status.ts` (`pnpm db:sample:tfl`), a separate script
+  from `db:sync:tfl`**, not a flag on it — `db:sync:tfl` establishes
+  network structure (lines/stops), meant to run rarely; this only calls
+  `ingestServiceStatus`, meant to run frequently. Mixing both concerns into
+  one script would make its "safe to run repeatedly" framing ambiguous. It
+  requires TfL lines to already exist (`ingestServiceStatus` already throws
+  a clear `IngestionError` otherwise) — no new error handling needed.
+- **Still a manual/cron-invoked script, not a scheduled job.** ADR-002
+  defers Redis/BullMQ to Phase 10; this follows the exact precedent
+  `db:sync:tfl` already set ("safe to run repeatedly by hand while there's
+  no scheduler yet"). A developer runs it by hand or from a local
+  cron/launchd entry; Phase 10 replaces this with a real background
+  worker.
+- **No query layer or UI for this history yet.** Phase 8 ("Reliability
+  methodology, baselines, `Reliability` entity") owns turning raw
+  `ServiceStatus` history into anything a page reads — this phase is data
+  collection only.
+
+**Consequences.** No schema change, no migration, no new dependency. The
+`ingest-service-status.ts` dedup change is a behavioural change to
+existing ingestion logic, covered by a new test case in
+`tests/unit/domain/ingestion/ingest-service-status.test.ts` (a synthetic
+`TransitProvider` polling the same status with a different `recordedAt`
+each call, asserting no duplicate row is appended).
+
+**Status.** Accepted.

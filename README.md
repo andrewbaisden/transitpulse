@@ -4,11 +4,12 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–6 of 15.** A static network explorer with a
+> **Current status: Phases 1–7 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
-> stored — see DECISIONS.md ADR-015), and an interactive Leaflet network
-> map at `/map` plus a per-station location embed (ADR-017). No
+> stored — see DECISIONS.md ADR-015), an interactive Leaflet network
+> map at `/map` plus a per-station location embed (ADR-017), and a
+> recurring status-history sampler (`pnpm db:sample:tfl`, ADR-018). No
 > reliability analytics, crowding, or prediction yet (see
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned).
@@ -126,10 +127,21 @@ two call sites. No API key required (OpenStreetMap raster tiles); see
 DECISIONS.md ADR-016 (original MapLibre GL JS decision) and ADR-017
 (superseding it with Leaflet after a real-browser WebGL2 failure).
 
-Phases 7–15 are architected for but not yet built: historical reliability,
-crowding/occupancy, realtime infrastructure, anomaly detection, arrival
-prediction, a simulation provider, personalisation, and production
-observability. See
+Phase 7 adds a recurring status-history sampler: `pnpm db:sample:tfl`
+(`prisma/sample-status.ts`) re-runs the existing `ingestServiceStatus`
+against `TflProvider` on whatever cadence you invoke it at, appending to
+the same append-only `ServiceStatus` table — no new table or migration,
+since that table was already built for exactly this (ADR-004). Scoped to
+delay history only; arrival-error (predicted vs. actual) would require
+inferring an "actual" arrival TfL's API never confirms, deferred until
+that can be done honestly. No scheduler yet (run it by hand or from a
+local cron/launchd entry) — Phase 10 adds real background workers. See
+DECISIONS.md ADR-018.
+
+Phases 8–15 are architected for but not yet built: reliability
+methodology, crowding/occupancy, realtime infrastructure, anomaly
+detection, arrival prediction, a simulation provider, personalisation, and
+production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.
