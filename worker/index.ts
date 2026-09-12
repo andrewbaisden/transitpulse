@@ -7,6 +7,7 @@ import { ingestLines } from "@/server/domain/ingestion/ingest-lines";
 import type { ServiceStatusChange } from "@/server/domain/ingestion/ingest-service-status";
 import { ingestServiceStatus } from "@/server/domain/ingestion/ingest-service-status";
 import { ingestStops } from "@/server/domain/ingestion/ingest-stops";
+import { generateAndEvaluatePredictions } from "@/server/domain/prediction/run-predictions";
 import { TflProvider } from "@/server/providers/tfl/tfl-provider";
 
 /**
@@ -16,18 +17,21 @@ import { TflProvider } from "@/server/providers/tfl/tfl-provider";
  * `prisma/sample-status.ts` (which this replaces). See DECISIONS.md
  * ADR-021 for why no monorepo split was needed for this.
  *
- * Two repeatable BullMQ jobs on one queue:
+ * Three repeatable BullMQ jobs on one queue:
  * - "sync-tfl": the full ingestLines/ingestStops/ingestServiceStatus
  *   sequence, every 6 hours (structural data changes rarely).
  * - "sample-status": ingestServiceStatus only, every 2 minutes (replaces
  *   the manual/cron cadence `db:sample:tfl` was standing in for — ADR-018).
+ * - "predict-reliability": generates/evaluates ReliabilityPrediction rows
+ *   once daily (Phase 12 — ADR-023).
  *
- * Every real status change either job detects is published to Redis for
- * the SSE route (src/app/api/live/status/route.ts) to relay to the UI.
+ * Every real status change either sync job detects is published to Redis
+ * for the SSE route (src/app/api/live/status/route.ts) to relay to the UI.
  */
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const TWO_MINUTES_MS = 2 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const STATUS_UPDATES_CHANNEL = "service-status-updates";
 
 const QUEUE_NAME = "transitpulse-sync";
@@ -70,6 +74,11 @@ async function main() {
     { every: TWO_MINUTES_MS },
     { name: "sample-status" },
   );
+  await queue.upsertJobScheduler(
+    "predict-reliability-schedule",
+    { every: ONE_DAY_MS },
+    { name: "predict-reliability" },
+  );
 
   const worker = new Worker(
     QUEUE_NAME,
@@ -91,6 +100,11 @@ async function main() {
         const changes = await ingestServiceStatus(provider);
         await publishChanges(publisher, changes);
         console.log(`[sample-status] ${changes.length} status change(s)`);
+      } else if (job.name === "predict-reliability") {
+        const summary = await generateAndEvaluatePredictions();
+        console.log(
+          `[predict-reliability] generated ${summary.generated}, evaluated ${summary.evaluated}`,
+        );
       }
     },
     { connection },

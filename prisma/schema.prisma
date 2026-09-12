@@ -63,8 +63,9 @@ model Line {
   source      String
   externalRef String
 
-  stops         LineStop[]
-  serviceStatus ServiceStatus[]
+  stops                  LineStop[]
+  serviceStatus          ServiceStatus[]
+  reliabilityPredictions ReliabilityPrediction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,4 +139,32 @@ model ServiceStatus {
   @@unique([lineId, source, recordedAt])
   @@index([lineId, recordedAt])
   @@map("service_statuses")
+}
+
+// Phase 12: a prediction is stored BEFORE its outcome is known — that's
+// what makes "evaluated against actual outcomes" (ARCHITECTURE.md roadmap)
+// meaningful rather than hindsight. `actualGoodServicePercent`/`evaluatedAt`
+// stay null until the target window has passed and a later job fills them
+// in from real ServiceStatus history. See DECISIONS.md ADR-023.
+model ReliabilityPrediction {
+  id     String @id @default(cuid())
+  lineId String
+  line   Line   @relation(fields: [lineId], references: [id])
+
+  source            String
+  predictedAt       DateTime // when this prediction was generated
+  targetWindowStart DateTime
+  targetWindowEnd   DateTime
+
+  predictedGoodServicePercent Float
+  algorithmVersion            Int
+
+  actualGoodServicePercent Float?
+  evaluatedAt              DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([lineId, source, targetWindowStart, targetWindowEnd])
+  @@index([lineId, targetWindowEnd])
+  @@map("reliability_predictions")
 }

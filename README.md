@@ -4,7 +4,9 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–11 of 15.** A static network explorer with a
+![TransitPulse](docs/transitpulse.png)
+
+> **Current status: Phases 1–12 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
@@ -14,11 +16,13 @@ and disruption context on top of live service data, not just "next train in
 > TfL's real (static/historical, never live) typical-crowding data,
 > explicitly labelled as such (ADR-020), a BullMQ worker (`pnpm worker`)
 > publishing real status changes over Redis so open pages live-patch their
-> status badges via Server-Sent Events (ADR-021), and explainable,
+> status badges via Server-Sent Events (ADR-021), explainable,
 > threshold-based anomaly detection comparing a line's last 24h against
-> its own 7-day baseline (ADR-022). No prediction yet (see
+> its own 7-day baseline (ADR-022), and a baseline-persistence reliability
+> forecast per line, evaluated against real outcomes once each target
+> window passes (ADR-023). See
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
-> what's built vs planned).
+> what's built vs planned.
 
 ## What this is (and isn't)
 
@@ -61,8 +65,8 @@ the same pipeline in a later phase without a domain rewrite.
 | Testing | Vitest, React Testing Library, Playwright |
 | CI | GitHub Actions |
 
-Redis, BullMQ, and an auth provider are **not** installed yet — they have
-no real use case until later phases (see
+Redis and BullMQ were installed in Phase 10 (ADR-021); an auth provider
+is still **not** installed — no real use case until Phase 14 (see
 [DECISIONS.md](./DECISIONS.md)).
 
 ## Local setup
@@ -181,9 +185,18 @@ model — the "explanation" is just the two percentages being compared, so
 it's never a black box. Computed on demand, no new table. See
 DECISIONS.md ADR-022.
 
-Phases 12–15 are architected for but not yet built: arrival prediction,
-a simulation provider, personalisation, and production observability.
-See
+Phase 12 adds reliability prediction: a new `ReliabilityPrediction` table
+(the one exception to "compute on demand" — a prediction has to be
+stored before its outcome is known, or evaluating it would just be
+hindsight) holds a baseline-persistence forecast per line (next 24h =
+current 7-day baseline, no trained model) generated and evaluated by a
+third worker job, `predict-reliability`, once daily
+(`src/server/domain/prediction/`). Arrival prediction specifically is
+still out of scope — Phase 7 (ADR-018) already ruled out inferring an
+"actual" arrival TfL's API never confirms. See DECISIONS.md ADR-023.
+
+Phases 13–15 are architected for but not yet built: a simulation
+provider, personalisation, and production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

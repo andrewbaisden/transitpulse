@@ -17,6 +17,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:sync:tfl": "tsx prisma/sync-tfl.ts",
     "db:sample:tfl": "tsx prisma/sample-status.ts",
+    "db:predict": "tsx prisma/predict-reliability.ts",
     "db:studio": "prisma studio",
     "db:test:migrate": "dotenv -e .env.test -- prisma migrate deploy",
     "worker": "tsx worker/index.ts",

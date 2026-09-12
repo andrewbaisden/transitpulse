@@ -867,3 +867,71 @@ files: `src/server/domain/anomaly/detect-anomaly.ts` (pure, unit-tested),
 DB), `src/components/network/anomaly-banner.tsx` (RTL-tested).
 
 **Status.** Accepted.
+
+---
+
+## ADR-023: Reliability prediction — baseline persistence, persisted and evaluated against real outcomes
+
+**Context.** The roadmap names Phase 12 as "Arrival/reliability
+prediction, evaluated against actual outcomes." "Evaluated against actual
+outcomes" is the key constraint: a prediction has to be stored *before*
+its outcome is known, or "evaluating" it is just hindsight. Arrival
+prediction specifically was already ruled out — Phase 7 (ADR-018)
+deferred arrival-error work because TfL's API never confirms an actual
+arrival happened, and that constraint hasn't changed. This phase covers
+reliability prediction only.
+
+**Decision.**
+
+- **Baseline persistence, not a trained model.** A `predictReliability`
+  call simply takes the current 7-day trailing `ReliabilityResult`
+  (ADR-019) and uses that percentage as the forecast for the next 24h
+  (`src/server/domain/prediction/predict-reliability.ts`). No seasonality,
+  no time-of-day modelling, no ML — a handful of days of real history
+  (this project's actual current data volume) isn't enough to justify
+  anything more sophisticated without that sophistication being fake. The
+  UI (`PredictionSummary`) says so explicitly: "not a trained model."
+- **A new persisted table, `ReliabilityPrediction`** — the first
+  departure from Phases 8/9/11's "compute on demand, no new table"
+  pattern, because this is the one case where persistence is the whole
+  point: a prediction has to exist in the database *before* its target
+  window ends, so a later job can honestly compare it against what
+  actually happened. `actualGoodServicePercent`/`evaluatedAt` start null
+  and are filled in once the window has passed — never backfilled with a
+  fabricated outcome if the data isn't there yet (`generateAndEvaluatePredictions`
+  simply skips and retries next run).
+- **A third worker job, `predict-reliability`, once daily**
+  (`worker/index.ts`; manual one-off: `pnpm db:predict` →
+  `prisma/predict-reliability.ts`, matching `db:sync:tfl`/`db:sample:tfl`'s
+  precedent). Each run first evaluates any due predictions, then generates
+  one fresh prediction per line from its current baseline —
+  `src/server/domain/prediction/run-predictions.ts` owns both steps so
+  the logic isn't duplicated between the worker and the manual script.
+- **`PREDICTION_ALGORITHM_VERSION`**, same convention as the reliability
+  and anomaly algorithms — a third algorithm now covered by AGENTS.md's
+  "never change without tests and a DECISIONS.md entry" rule.
+- **UI**: `PredictionSummary` shows the latest not-yet-evaluated
+  prediction, and — once enough evaluated history exists — a plain
+  average-error figure ("recent forecasts have been within N points on
+  average"). Renders nothing when no prediction exists yet, matching
+  `AnomalyBanner`'s and `ReliabilitySummary`'s existing "never show a
+  fabricated placeholder" pattern.
+- **A recurring shared-test-DB lesson, again**: `generateAndEvaluatePredictions`
+  loops over every line, so its own test had to clean up every line's
+  prediction for its test-specific target windows, not just the one line
+  the test asserts on directly — the same pollution class ADR-021
+  documented (and, while implementing this phase, still had to fix once
+  more after initially only cleaning up one line).
+
+**Consequences.** New migration (`ReliabilityPrediction` model + relation
+on `Line`). New files: `src/server/domain/prediction/{predict-reliability,evaluate-prediction,run-predictions}.ts`
+(pure/integration-tested), `src/server/queries/prediction.ts`
+(integration-tested), `src/components/network/prediction-summary.tsx`
+(RTL-tested), `prisma/predict-reliability.ts`. Verified against real data:
+`pnpm db:predict` generated a prediction per line with baseline history
+against the dev database, and the line detail page rendered it correctly
+after a dev-server restart (a schema change requires restarting `next
+dev` to pick up the regenerated Prisma client — it isn't part of
+Turbopack's hot-reload graph).
+
+**Status.** Accepted.

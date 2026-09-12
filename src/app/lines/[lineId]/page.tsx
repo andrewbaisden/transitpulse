@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { AnomalyBanner } from "@/components/network/anomaly-banner";
 import { LineStatusCard } from "@/components/network/line-status-card";
 import { ModeIcon, modeLabel } from "@/components/network/mode-icon";
+import { PredictionSummary } from "@/components/network/prediction-summary";
 import { ReliabilitySummary } from "@/components/network/reliability-summary";
 import { getLineAnomaly } from "@/server/queries/anomaly";
 import { getLineDetail } from "@/server/queries/lines";
+import { getLinePredictionSummary } from "@/server/queries/prediction";
 import { getLineReliability } from "@/server/queries/reliability";
 
 // Renders a "last updated" timestamp from live data — must not be frozen
@@ -18,9 +20,10 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
 
   if (!line) notFound();
 
-  const [reliability, anomaly] = await Promise.all([
+  const [reliability, anomaly, prediction] = await Promise.all([
     getLineReliability(lineId),
     getLineAnomaly(lineId),
+    getLinePredictionSummary(lineId),
   ]);
 
   return (
@@ -50,6 +53,8 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
       <AnomalyBanner anomaly={anomaly} />
 
       <ReliabilitySummary reliability={reliability} />
+
+      <PredictionSummary prediction={prediction} />
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">Stations ({line.stops.length})</h2>
