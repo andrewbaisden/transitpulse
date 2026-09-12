@@ -18,8 +18,12 @@ import { TflProvider } from "@/server/providers/tfl/tfl-provider";
  * repeatedly only appends a row when something actually changed — see
  * DECISIONS.md ADR-018.
  *
- * No scheduler exists yet (Redis/BullMQ are deferred to Phase 10 — ADR-002),
- * so run this by hand or from a local cron/launchd entry while iterating.
+ * Phase 10 added `worker/index.ts` (`pnpm worker`), which runs this same
+ * `ingestServiceStatus` call on a real recurring schedule via BullMQ and
+ * publishes real changes to Redis for the UI's live status badges — see
+ * DECISIONS.md ADR-021. This script is kept as a manual one-off (e.g. to
+ * force an immediate sample without starting the worker), not the primary
+ * recurring mechanism anymore.
  */
 async function main() {
   if (!env.TFL_APP_KEY) {

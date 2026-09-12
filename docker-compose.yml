@@ -16,8 +16,16 @@ services:
       timeout: 5s
       retries: 10
 
-  # Redis is intentionally not defined here. It has no real use case until
-  # Phase 10 (background jobs / realtime sync) — see DECISIONS.md ADR-002.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   transitpulse_pgdata:

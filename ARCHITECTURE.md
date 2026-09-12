@@ -2,18 +2,19 @@
 
 ## Status
 
-This describes the system as built through **Phase 9** (static network
+This describes the system as built through **Phase 10** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, an
 interactive Leaflet map at `/map` plus a per-station location embed,
 both backed by `getMapStops` over existing `lat`/`lon` — ADR-016/ADR-017 —,
-a recurring status-history sampler over the existing append-only
-`ServiceStatus` table, `pnpm db:sample:tfl` — ADR-018 —, a
-time-weighted per-line reliability figure computed on demand from that
-history, `getLineReliability` — ADR-019 —, and a per-station crowding
-section, `getStationOccupancy`, fetched live from TfL's real (static,
-never live) Crowding data — ADR-020), plus
+a time-weighted per-line reliability figure computed on demand from
+`ServiceStatus` history, `getLineReliability` — ADR-019 —, a per-station
+crowding section, `getStationOccupancy`, fetched live from TfL's real
+(static, never live) Crowding data — ADR-020 —, and a BullMQ worker
+(`worker/index.ts`, `pnpm worker`) running the sync/sample jobs on Redis,
+publishing real status changes over pub/sub so open pages live-patch
+their status badges via Server-Sent Events — ADR-021), plus
 the target shape for later phases so the current design can be checked
 against where it needs to go. See [Roadmap](#roadmap-phases-4-15) for
 what's *not* built yet.
@@ -136,16 +137,17 @@ Network 1──* Line 1──* LineStop *──1 Stop (self-referential: HUB > S
 
 ## PostgreSQL vs Redis
 
-Only PostgreSQL exists today. Redis/BullMQ have no real use case until
-Phase 10 (background sync jobs, realtime broadcast) — see DECISIONS.md
-ADR-002. When they arrive, the intended split is:
+Phase 10 introduced Redis/BullMQ (ADR-002 deferred them until a phase
+actually needed them; ADR-021 is that phase). The split:
 
 - **PostgreSQL**: authoritative persisted history — providers, networks,
   lines, stops, historical arrivals/observations, disruptions, reliability
   aggregates, favourites.
-- **Redis**: latest-value cache and pub/sub for realtime fan-out (latest
-  arrivals, latest vehicle positions, current status) — never the
-  authoritative store for anything that needs to survive a restart.
+- **Redis**: pub/sub for realtime fan-out (`service-status-updates`
+  channel — published by `worker/index.ts`, relayed to the browser by
+  `src/app/api/live/status/route.ts` over SSE) and the BullMQ job queue's
+  own storage. Not used as a value cache yet — never the authoritative
+  store for anything that needs to survive a restart.
 
 ## Data fetching / server-client boundary
 
@@ -180,9 +182,12 @@ trigger.
 
 Next.js app → Vercel. Postgres → a managed instance (Neon/RDS/etc,
 TBD when Phase 4+ needs a persistent hosted DB rather than local Docker).
-Background workers (Phase 10+) → a long-running host (Fly.io/AWS) once
-BullMQ/Redis are introduced, since Vercel's serverless functions aren't
-suited to long-lived queue consumers.
+The `worker/index.ts` BullMQ worker (Phase 10, ADR-021) needs a
+long-running host (Fly.io/AWS/a managed Redis) once deployed — Vercel's
+serverless functions aren't suited to a long-lived queue consumer. The
+SSE route (`src/app/api/live/status`) also needs a runtime that supports
+long-lived streamed responses; not yet verified against Vercel's default
+function timeout — worth checking once deployment is actually configured.
 
 ## Roadmap (Phases 4-15)
 
@@ -194,7 +199,7 @@ suited to long-lived queue consumers.
 | 7 | ✅ Historical sampling of real observations — delay only; arrival error deferred (ADR-018) |
 | 8 | ✅ Reliability methodology — time-weighted % good service, computed on demand (ADR-019) |
 | 9 | ✅ Crowding source/confidence model — live per-station lookup of TfL's static data, not a persisted entity (ADR-020) |
-| 10 | Redis, BullMQ sync workers, realtime broadcast — worker/monorepo split decided here |
+| 10 | ✅ Redis, BullMQ sync workers, realtime status badges via SSE — no monorepo split needed (ADR-021) |
 | 11 | Explainable anomaly detection (deviation from rolling baseline) |
 | 12 | Arrival/reliability prediction, evaluated against actual outcomes |
 | 13 | `SimulationProvider` implementing the same interface — scenario simulation |

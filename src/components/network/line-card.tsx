@@ -1,11 +1,20 @@
+"use client";
+
 import Link from "next/link";
 import { ModeIcon, modeLabel } from "@/components/network/mode-icon";
 import { ServiceStatusBadge } from "@/components/network/service-status-badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { useLiveServiceStatus } from "@/lib/live-status-store";
 import { formatRelativeToNow } from "@/lib/time";
 import type { LineWithStatus } from "@/server/queries/network";
 
 export function LineCard({ line }: { line: LineWithStatus }) {
+  const live = useLiveServiceStatus(line.id, {
+    status: line.status,
+    description: line.statusDescription,
+    recordedAt: line.statusRecordedAt,
+  });
+
   return (
     <Link href={`/lines/${line.id}`} className="block" data-testid="line-card">
       <Card className="transition-colors hover:bg-accent/50">
@@ -25,9 +34,9 @@ export function LineCard({ line }: { line: LineWithStatus }) {
             </div>
           </div>
           <div className="text-right">
-            <ServiceStatusBadge status={line.status} />
+            <ServiceStatusBadge status={live.status} />
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Updated {formatRelativeToNow(line.statusRecordedAt)}
+              Updated {formatRelativeToNow(live.recordedAt)}
             </p>
           </div>
         </CardContent>

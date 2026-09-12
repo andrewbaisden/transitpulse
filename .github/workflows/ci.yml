@@ -7,6 +7,11 @@ on:
 
 env:
   DATABASE_URL: "postgresql://transitpulse:transitpulse@localhost:5432/transitpulse"
+  # No Redis service in CI: nothing in typecheck/lint/test/build actually
+  # opens a connection (Phase 10's worker and SSE route are verified
+  # manually — see DECISIONS.md ADR-021), env.ts only validates the URL
+  # shape at import time.
+  REDIS_URL: "redis://localhost:6379"
 
 jobs:
   lint-test-build:

@@ -1,7 +1,18 @@
 import { prisma } from "@/server/db/client";
+import type { ServiceStatusLevel } from "@/server/domain/types";
 import type { TransitProvider } from "@/server/providers/types";
 import { IngestionError } from "./ingest-stops";
 import { normalizeServiceStatus } from "./normalize";
+
+// The internal Prisma Line.id (not lineExternalRef) — Phase 10's worker
+// publishes this to Redis, and the UI keys live status overrides by it.
+// See DECISIONS.md ADR-021.
+export interface ServiceStatusChange {
+  lineId: string;
+  status: ServiceStatusLevel;
+  description: string | null;
+  recordedAt: Date;
+}
 
 /**
  * Append-only: each ingestion run inserts a new ServiceStatus row per line
@@ -18,8 +29,14 @@ import { normalizeServiceStatus } from "./normalize";
  * turn one continuous period of good service into one new row per poll
  * whenever this is run on a recurring cadence (Phase 7, `db:sample:tfl`).
  * See DECISIONS.md ADR-018.
+ *
+ * Returns the rows actually written (not the skipped ones) so a caller
+ * (Phase 10's worker) can publish real changes without re-deriving what
+ * changed itself.
  */
-export async function ingestServiceStatus(provider: TransitProvider): Promise<void> {
+export async function ingestServiceStatus(
+  provider: TransitProvider,
+): Promise<ServiceStatusChange[]> {
   const providerStatuses = await provider.getServiceStatus();
   const domainStatuses = providerStatuses.map((status) =>
     normalizeServiceStatus(status, provider.sourceName),
@@ -30,6 +47,8 @@ export async function ingestServiceStatus(provider: TransitProvider): Promise<vo
     select: { id: true, externalRef: true },
   });
   const lineIdByExternalRef = new Map(lineRows.map((row) => [row.externalRef, row.id]));
+
+  const changes: ServiceStatusChange[] = [];
 
   for (const status of domainStatuses) {
     const lineId = lineIdByExternalRef.get(status.lineExternalRef);
@@ -68,5 +87,14 @@ export async function ingestServiceStatus(provider: TransitProvider): Promise<vo
         description: status.description,
       },
     });
+
+    changes.push({
+      lineId,
+      status: status.status,
+      description: status.description,
+      recordedAt: status.recordedAt,
+    });
   }
+
+  return changes;
 }

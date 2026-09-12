@@ -14,6 +14,9 @@ export const env = createEnv({
     // left optional here rather than required — the app itself never needs
     // it (TflProvider is only ever constructed by the sync script).
     TFL_APP_KEY: z.string().min(1).optional(),
+    // Phase 10: required like DATABASE_URL, not optional — both the app
+    // (SSE route) and worker/index.ts need it. See DECISIONS.md ADR-021.
+    REDIS_URL: z.url(),
   },
   client: {
     NEXT_PUBLIC_APP_NAME: z.string().min(1),
@@ -22,6 +25,7 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     TFL_APP_KEY: process.env.TFL_APP_KEY,
+    REDIS_URL: process.env.REDIS_URL,
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
   },
 });

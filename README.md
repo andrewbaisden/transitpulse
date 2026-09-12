@@ -4,16 +4,18 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–9 of 15.** A static network explorer with a
+> **Current status: Phases 1–10 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
 > map at `/map` plus a per-station location embed (ADR-017), a
-> recurring status-history sampler (`pnpm db:sample:tfl`, ADR-018), a
-> time-weighted reliability figure per line computed on demand from that
-> history (ADR-019), and a per-station crowding section using TfL's real
-> (static/historical, never live) typical-crowding data, explicitly
-> labelled as such (ADR-020). No prediction yet (see
+> time-weighted reliability figure per line computed on demand from
+> `ServiceStatus` history (ADR-019), a per-station crowding section using
+> TfL's real (static/historical, never live) typical-crowding data,
+> explicitly labelled as such (ADR-020), and a BullMQ worker
+> (`pnpm worker`) that replaced the manual sync scripts, publishing real
+> status changes over Redis so open pages live-patch their status badges
+> via Server-Sent Events (ADR-021). No prediction yet (see
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned).
 
@@ -47,11 +49,12 @@ the same pipeline in a later phase without a domain rewrite.
 | Framework | Next.js 16 (App Router), React 19, TypeScript (strict) |
 | Styling | Tailwind CSS v4, shadcn/ui (Radix) |
 | Validation | Zod (provider boundary + env) |
-| Client state | Zustand (reserved — no UI state complex enough to need it yet) |
+| Client state | Zustand (live status overrides via SSE — see DECISIONS.md ADR-021) |
 | Server-fetched state | TanStack Query (search-as-you-type only) |
 | Forms | React Hook Form (installed for the fixed target stack; unwired until a real form exists — see DECISIONS.md) |
 | Database | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`) |
 | Map | Leaflet + OpenStreetMap raster tiles (no API key — see DECISIONS.md ADR-017) |
+| Jobs / realtime | BullMQ + Redis, SSE for browser push (ADR-021) |
 | Lint/format | Biome |
 | Git hooks | Husky + lint-staged |
 | Testing | Vitest, React Testing Library, Playwright |
@@ -130,16 +133,14 @@ two call sites. No API key required (OpenStreetMap raster tiles); see
 DECISIONS.md ADR-016 (original MapLibre GL JS decision) and ADR-017
 (superseding it with Leaflet after a real-browser WebGL2 failure).
 
-Phase 7 adds a recurring status-history sampler: `pnpm db:sample:tfl`
-(`prisma/sample-status.ts`) re-runs the existing `ingestServiceStatus`
-against `TflProvider` on whatever cadence you invoke it at, appending to
+Phase 7 adds status-history sampling: `ingestServiceStatus`, appending to
 the same append-only `ServiceStatus` table — no new table or migration,
 since that table was already built for exactly this (ADR-004). Scoped to
 delay history only; arrival-error (predicted vs. actual) would require
 inferring an "actual" arrival TfL's API never confirms, deferred until
-that can be done honestly. No scheduler yet (run it by hand or from a
-local cron/launchd entry) — Phase 10 adds real background workers. See
-DECISIONS.md ADR-018.
+that can be done honestly. See DECISIONS.md ADR-018. (Originally run by
+hand via `pnpm db:sample:tfl`, no scheduler yet — Phase 10 replaced that
+with a real background worker; see below.)
 
 Phase 8 adds a reliability figure per line: `getLineReliability`
 (`src/server/queries/reliability.ts`) computes a time-weighted % of a
@@ -159,9 +160,20 @@ never mistaken for a live measurement (there is no live occupancy API to
 measure from). No new table — fetched on demand like arrivals, not
 ingested. See DECISIONS.md ADR-020.
 
-Phases 10–15 are architected for but not yet built: realtime
-infrastructure, anomaly detection, arrival prediction, a simulation
-provider, personalisation, and production observability. See
+Phase 10 adds a real background worker: `pnpm worker`
+(`worker/index.ts`) runs two BullMQ jobs against Redis — `sync-tfl`
+every 6 hours (lines/stops/status) and `sample-status` every 2 minutes
+(status only), replacing the manual `db:sync:tfl`/`db:sample:tfl`
+cadence. Every real status change either job detects is published over
+Redis pub/sub; `src/app/api/live/status/route.ts` relays it to the
+browser via Server-Sent Events, and any open page's status badge
+live-patches without a refresh (Zustand, installed since Phase 1-3,
+finally has a use case). No monorepo split — the worker is a second
+process in the same package. See DECISIONS.md ADR-021.
+
+Phases 11–15 are architected for but not yet built: anomaly detection,
+arrival prediction, a simulation provider, personalisation, and
+production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

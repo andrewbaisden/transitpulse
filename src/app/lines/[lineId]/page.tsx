@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LineStatusCard } from "@/components/network/line-status-card";
 import { ModeIcon, modeLabel } from "@/components/network/mode-icon";
 import { ReliabilitySummary } from "@/components/network/reliability-summary";
-import { ServiceStatusBadge } from "@/components/network/service-status-badge";
-import { formatLondonDateTime } from "@/lib/time";
 import { getLineDetail } from "@/server/queries/lines";
 import { getLineReliability } from "@/server/queries/reliability";
 
@@ -36,15 +35,12 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
         </div>
       </div>
 
-      <div className="rounded-lg border bg-background p-4">
-        <ServiceStatusBadge status={line.status} className="text-base" />
-        {line.statusDescription && (
-          <p className="mt-1 text-sm text-muted-foreground">{line.statusDescription}</p>
-        )}
-        <p className="mt-2 text-xs text-muted-foreground">
-          Last updated {formatLondonDateTime(line.statusRecordedAt)}
-        </p>
-      </div>
+      <LineStatusCard
+        lineId={line.id}
+        status={line.status}
+        description={line.statusDescription}
+        recordedAt={line.statusRecordedAt}
+      />
 
       <ReliabilitySummary reliability={reliability} />
 

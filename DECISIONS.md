@@ -725,3 +725,99 @@ tests updated accordingly — `getVehicles` is still unimplemented,
 reserved for Phase 10).
 
 **Status.** Accepted.
+
+---
+
+## ADR-021: Redis, BullMQ worker (single package), realtime status badges via SSE
+
+**Context.** The roadmap names Phase 10 as "Redis, BullMQ sync workers,
+realtime broadcast — worker/monorepo split decided here." ADR-001
+explicitly deferred the monorepo question to this phase ("a real decision
+point arrives at Phase 10... revisit then, with actual constraints in
+hand"); ADR-002 deferred installing Redis/BullMQ to this phase. Two
+scripts already existed as stand-ins for exactly this
+(`prisma/sync-tfl.ts`, `prisma/sample-status.ts`), each with a comment
+saying so.
+
+**Decision.**
+
+- **No monorepo — the worker is a second `tsx` entrypoint**
+  (`worker/index.ts`, `pnpm worker`) in the same package, reusing
+  `src/server/*` directly (same Prisma client, same `ingestLines`/
+  `ingestStops`/`ingestServiceStatus`). It needs the same dependency
+  graph as the Next.js app, not an isolated one, so `apps/web` +
+  `apps/worker` would be pure restructuring overhead for no real
+  benefit. This closes ADR-001's open question.
+- **Two BullMQ jobs on one queue** (`transitpulse-sync`), replacing the
+  two manual scripts: `sync-tfl` (full `ingestLines`/`ingestStops`/
+  `ingestServiceStatus`, every 6 hours — structural data changes rarely)
+  and `sample-status` (`ingestServiceStatus` only, every 2 minutes —
+  the cadence Phase 7's `db:sample:tfl` was always meant to run at once a
+  scheduler existed). Scheduled via `Queue.upsertJobScheduler` (BullMQ
+  v6's API — `Queue.add({ repeat })` was removed in v6), which is
+  idempotent by `jobSchedulerId`, so restarting the worker never
+  duplicates the schedule.
+- **`ingestServiceStatus` now returns `ServiceStatusChange[]`** (was
+  `Promise<void>`) — the rows it actually wrote, keyed by the internal
+  `Line.id`. Safe to change: nothing depended on the old `void` return
+  (both existing callers already ignored it). The worker publishes every
+  returned change to Redis; no new "did anything change" logic needed
+  outside the ingestion function that already knows.
+- **A real bug found while adding this**: two existing tests
+  (`tests/unit/server/queries/reliability.test.ts`'s window-calculation
+  test, and `ingest-service-status.test.ts`'s "polling noise" test) each
+  insert a synthetic `ServiceStatus` row with a `recordedAt` that ends up
+  later than real wall-clock time (one deliberately 7+ days in the
+  future, the other real-`Date.now()`-based). Neither cleaned up after
+  itself. Because `ingestServiceStatus`'s dedup check picks "latest" via
+  `orderBy: recordedAt desc`, either leftover row permanently outranks
+  that line's real fixture data in the shared, persistent test DB —
+  breaking dedup for every later test reusing that line, invisibly,
+  because no earlier test asserted on `ingestServiceStatus`'s return
+  value (only row counts, which stayed stable regardless). Both tests
+  now clean up their synthetic rows in `afterAll`. This wasn't a
+  production bug (real TfL data is never future-dated), but it's a real
+  shared-test-DB hygiene gap worth naming: a synthetic row with a
+  timestamp that isn't genuinely "now" needs to be cleaned up, not left
+  for the next test to trip over.
+- **Realtime transport: Server-Sent Events, not WebSockets**
+  (`src/app/api/live/status/route.ts`). This is strictly server→client
+  (status changes push out; the client never sends anything back), and
+  SSE is a plain streamed Route Handler response — no custom server,
+  consistent with the "no monorepo / stay in Next.js's normal server
+  model" decision above. The route opens its own dedicated Redis
+  subscriber connection (pub/sub needs one not shared with other
+  commands) and disconnects it on the request's `abort` signal.
+- **Zustand as the live-override store**
+  (`src/lib/live-status-store.ts`) — installed since Phase 1-3,
+  explicitly "unwired until a real use case exists" (README stack
+  table). This is that use case: a `useLiveServiceStatus(lineId,
+  initial)` hook returns an SSE-delivered override if one has arrived
+  this session, else the server-rendered `initial` values. `LineCard`
+  (network overview + lines list) and a new `LineStatusCard` (extracted
+  from the line detail page, same pattern as `ReliabilitySummary` in
+  Phase 8) both use it — no other component needed converting to a
+  client component.
+- **Scope boundary**: live updates cover per-line status badges and
+  their timestamps only. The network overview's aggregate `SummaryStat`
+  tiles (counts of good-service/minor-delay/severe lines) are **not**
+  wired live this phase — real, separate work, left for when it's
+  actually asked for.
+- **Caveat, not a blocker**: long-lived SSE connections have known
+  limitations on some serverless hosts (e.g. Vercel's default function
+  timeout). Not a concern now — deployment isn't configured yet
+  (ARCHITECTURE.md) — but worth revisiting once it is.
+
+**Consequences.** New dependencies: `bullmq`, `ioredis`. New required env
+var `REDIS_URL` (same treatment as `DATABASE_URL` — no default). New
+`redis` service in `docker-compose.yml`. CI gets `REDIS_URL` as a plain
+env value (no new CI service — nothing in typecheck/lint/test/build opens
+a Redis connection; the worker and SSE route are verified manually,
+matching the precedent already set for MapLibre/browser-only checks in
+ADR-017). Verified end-to-end manually: `pnpm worker` against real TfL
+data successfully ran both jobs and published real changes; a message
+published directly to the `service-status-updates` Redis channel
+live-patched an open line detail page's status badge in a real browser
+with no refresh.
+
+**Status.** Accepted.

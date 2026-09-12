@@ -19,6 +19,7 @@
     "db:sample:tfl": "tsx prisma/sample-status.ts",
     "db:studio": "prisma studio",
     "db:test:migrate": "dotenv -e .env.test -- prisma migrate deploy",
+    "worker": "tsx worker/index.ts",
     "prepare": "husky"
   },
   "prisma": {
@@ -30,11 +31,13 @@
     "@prisma/client": "^7.10.0",
     "@t3-oss/env-nextjs": "^0.13.11",
     "@tanstack/react-query": "^5.102.8",
+    "bullmq": "^6.3.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cn": "^0.2.6",
     "date-fns-tz": "^3.2.0",
+    "ioredis": "^6.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.44.0",
     "next": "16.3.4",
