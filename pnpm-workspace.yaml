@@ -1,5 +1,15 @@
 allowBuilds:
   '@prisma/engines': true
+  # @sentry/cli's postinstall downloads a platform binary used only for
+  # source-map upload during build — not needed since this project doesn't
+  # wrap next.config.ts with withSentryConfig (see DECISIONS.md ADR-026).
+  '@sentry/cli': false
+  # better-auth's optional sqlite adapter — this project only uses the
+  # Postgres/Prisma adapter, so its native binary is never exercised.
+  better-sqlite3: false
+  # posthog-js's core-js dependency's build script is unneeded polyfill
+  # tooling, not runtime code.
+  core-js: false
   esbuild: true
   msgpackr-extract: true
   prisma: true

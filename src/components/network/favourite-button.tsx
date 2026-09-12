@@ -24,6 +24,7 @@ export function FavouriteButton({
   const { data: session, isPending } = authClient.useSession();
   const [favouriteId, setFavouriteId] = useState(initialFavouriteId);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (isPending) return null;
 
@@ -40,36 +41,55 @@ export function FavouriteButton({
   const isFavourited = favouriteId !== null;
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={isSaving}
-      onClick={async () => {
-        setIsSaving(true);
-        try {
-          if (isFavourited) {
-            await fetch("/api/favourites", {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ favouriteId }),
-            });
-            setFavouriteId(null);
-          } else {
-            const response = await fetch("/api/favourites", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(target),
-            });
-            const data: { favouriteId: string } = await response.json();
-            setFavouriteId(data.favouriteId);
+    <div className="flex flex-col items-start gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={isSaving}
+        onClick={async () => {
+          setIsSaving(true);
+          setError(null);
+          try {
+            if (isFavourited) {
+              const response = await fetch("/api/favourites", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ favouriteId }),
+              });
+              // A failed delete leaves favouriteId as-is, so the button
+              // keeps accurately showing "Favourited" rather than a state
+              // that no longer matches the server.
+              if (!response.ok) throw new Error("Couldn't remove favourite. Try again.");
+              setFavouriteId(null);
+            } else {
+              const response = await fetch("/api/favourites", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(target),
+              });
+              if (!response.ok) throw new Error("Couldn't save favourite. Try again.");
+              const data: { favouriteId: string } = await response.json();
+              setFavouriteId(data.favouriteId);
+            }
+          } catch {
+            setError(
+              isFavourited
+                ? "Couldn't remove favourite. Try again."
+                : "Couldn't save favourite. Try again.",
+            );
+          } finally {
+            setIsSaving(false);
           }
-        } finally {
-          setIsSaving(false);
-        }
-      }}
-    >
-      <Star className={cn("size-3.5", isFavourited && "fill-current")} />
-      {isFavourited ? "Favourited" : "Favourite"}
-    </Button>
+        }}
+      >
+        <Star className={cn("size-3.5", isFavourited && "fill-current")} />
+        {isFavourited ? "Favourited" : "Favourite"}
+      </Button>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

@@ -62,4 +62,20 @@ describe("FavouriteButton", () => {
 
     expect(screen.getByRole("button")).toHaveTextContent("Favourited");
   });
+
+  it("shows an error and keeps its prior state when the save request fails", async () => {
+    useSessionMock.mockReturnValue({ data: { user: { id: "user-1" } }, isPending: false });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 500 })),
+    );
+    const user = userEvent.setup();
+
+    render(<FavouriteButton target={{ lineId: "central-id" }} initialFavouriteId={null} />);
+
+    await user.click(screen.getByRole("button", { name: /favourite/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't save favourite/i);
+    expect(screen.getByRole("button")).toHaveTextContent("Favourite");
+  });
 });

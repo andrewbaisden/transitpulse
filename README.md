@@ -6,7 +6,7 @@ and disruption context on top of live service data, not just "next train in
 
 ![TransitPulse](docs/transitpulse.png)
 
-> **Current status: Phases 1–14 of 15.** A static network explorer with a
+> **Current status: Phases 1–15 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
@@ -22,8 +22,10 @@ and disruption context on top of live service data, not just "next train in
 > forecast per line, evaluated against real outcomes once each target
 > window passes (ADR-023), a `SimulationProvider` for scenario testing
 > (`pnpm db:sync:simulation`), always shown with a "Simulated" tag so it's
-> never mistaken for live data (ADR-024), and self-hosted auth (Better
-> Auth) with per-line/station favourites (ADR-025). See
+> never mistaken for live data (ADR-024), self-hosted auth (Better
+> Auth) with per-line/station favourites (ADR-025), and inert-by-default
+> Sentry/PostHog observability plus a security-headers/accessibility pass
+> and documented deployment target (ADR-026/ADR-027). See
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned.
 
@@ -63,6 +65,7 @@ the same pipeline in a later phase without a domain rewrite.
 | Database | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`) |
 | Map | Leaflet + OpenStreetMap raster tiles (no API key — see DECISIONS.md ADR-017) |
 | Jobs / realtime | BullMQ + Redis, SSE for browser push (ADR-021) |
+| Observability | Sentry (`@sentry/nextjs`) + PostHog (`posthog-js`), both inert until real credentials are set (ADR-026) |
 | Lint/format | Biome |
 | Git hooks | Husky + lint-staged |
 | Testing | Vitest, React Testing Library, Playwright |
@@ -70,7 +73,9 @@ the same pipeline in a later phase without a domain rewrite.
 
 Redis and BullMQ were installed in Phase 10 (ADR-021); Better Auth
 (self-hosted, not a third-party account provider) was installed in Phase
-14 (ADR-025) — see [DECISIONS.md](./DECISIONS.md) for both.
+14 (ADR-025); Sentry and PostHog were installed in Phase 15, wired to
+no-op with no DSN/key set (ADR-026) — see [DECISIONS.md](./DECISIONS.md)
+for all three.
 
 ## Local setup
 
@@ -95,6 +100,9 @@ Copy `.env.example` to `.env` first if it doesn't already exist locally.
 | `REDIS_URL` | yes | Redis connection string (BullMQ + SSE pub/sub — ADR-021) |
 | `BETTER_AUTH_SECRET` | yes | Signs session cookies — generate your own, see `.env.example` |
 | `BETTER_AUTH_URL` | yes (defaults to `http://localhost:3000`) | Base URL Better Auth issues cookies/callbacks against |
+| `NEXT_PUBLIC_SENTRY_DSN` | no | Enables Sentry error reporting when set — inert (no-op) otherwise. See DECISIONS.md ADR-026 |
+| `NEXT_PUBLIC_POSTHOG_KEY` | no | Enables PostHog analytics when set — inert otherwise |
+| `NEXT_PUBLIC_POSTHOG_HOST` | no (defaults to `https://us.i.posthog.com`) | Only relevant once `NEXT_PUBLIC_POSTHOG_KEY` is set |
 
 ### Database
 
@@ -227,16 +235,31 @@ schema (a Postgres unique index can't express "exactly one of two
 nullable columns" — `NULL` is never equal to `NULL`). See DECISIONS.md
 ADR-025.
 
-Phase 15 is architected for but not yet built: production observability
-(Sentry, PostHog) and deployment. See
-[ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
-[DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
-them.
+Phase 15 adds production observability and a hardening pass: **Sentry**
+(`@sentry/nextjs`) and **PostHog** (`posthog-js`) are both wired via
+Next.js 16's `instrumentation.ts`/`instrumentation-client.ts` convention,
+but stay completely inert until `NEXT_PUBLIC_SENTRY_DSN`/
+`NEXT_PUBLIC_POSTHOG_KEY` are actually set — no account exists for this
+project to report to yet, and pretending otherwise would violate the same
+"never fabricate" principle this project applies to transit data (see
+DECISIONS.md ADR-026). Alongside that: an accessibility pass (ARIA labels
+on the map and status banner, `aria-invalid`/`role="alert"` wiring on the
+auth forms, a real bug fix in `FavouriteButton` that silently mis-rendered
+on a failed request), security headers (`Content-Security-Policy`,
+`X-Frame-Options`, a `Permissions-Policy` that explicitly denies
+geolocation — enforcing AGENTS.md's privacy rule, not just stating it),
+and a `pnpm audit` pass (the only findings are in transitive,
+never-invoked database-driver code paths). See DECISIONS.md ADR-027 and
+[DEPLOYMENT.md](./DEPLOYMENT.md) for the concrete (documented, not yet
+executed — no cloud accounts exist for this project) deployment target,
+including the resolution to the Vercel/SSE timeout question left open
+since Phase 10.
 
 ## Documentation
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — system design, data model, roadmap
 - [DECISIONS.md](./DECISIONS.md) — ADR log
 - [TESTING.md](./TESTING.md) — test strategy and how to run each suite
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — deployment target and release steps
 - [AGENTS.md](./AGENTS.md) — conventions for AI coding agents working in this repo
 - [AI_ENGINEERING.md](./AI_ENGINEERING.md) — how AI assistance was used on this project

@@ -79,7 +79,7 @@ export function NetworkMap({
       for (const stop of stops) {
         L.marker([stop.lat, stop.lon], { icon: pinIcon(L, stop.lineColor ?? DEFAULT_MARKER_COLOR) })
           .bindPopup(
-            `<a href="/stations/${stop.id}" style="font-weight:600;text-decoration:underline">${escapeHtml(stop.name)}</a>`,
+            `<a href="/stations/${escapeHtml(stop.id)}" style="font-weight:600;text-decoration:underline">${escapeHtml(stop.name)}</a>`,
           )
           .addTo(map);
       }
@@ -98,5 +98,16 @@ export function NetworkMap({
     };
   }, [stops, maxZoom]);
 
-  return <div ref={containerRef} className={className ?? "h-[500px] w-full rounded-lg border"} />;
+  // Not keyboard-navigable pin-by-pin (a known Leaflet limitation) — the
+  // station list pages are the accessible equivalent route to every
+  // destination a marker links to, so this is a documented gap rather
+  // than a silent one. See DECISIONS.md ADR-027.
+  return (
+    <div
+      ref={containerRef}
+      role="img"
+      aria-label={`Map of ${stops.length} London transit station${stops.length === 1 ? "" : "s"}`}
+      className={className ?? "h-[500px] w-full rounded-lg border"}
+    />
+  );
 }

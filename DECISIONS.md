@@ -1063,3 +1063,158 @@ call), and confirmed `/favourites` rendered it — then cleaned up the test
 user.
 
 **Status.** Accepted.
+
+## ADR-026: Sentry and PostHog, inert by default until real credentials exist
+
+**Context.** The roadmap names Phase 15 as "Sentry, PostHog, accessibility/
+perf/security pass, production deployment." Neither Sentry nor PostHog can
+be genuinely wired up end-to-end without an external account this project
+has no way to provision on its own (the same constraint that shaped
+ADR-025's Clerk-vs-Better-Auth decision). Silently shipping the SDKs
+without a DSN/key would either crash at init or, worse, silently pretend
+telemetry is flowing when it isn't — a fabrication in spirit, the same
+category of thing AGENTS.md's "never fabricate" rule already forbids for
+transit data.
+
+**Decision.**
+
+- **Both integrations are strictly opt-in via env vars**
+  (`NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY`/
+  `NEXT_PUBLIC_POSTHOG_HOST`), all optional in `src/lib/env.ts`, all unset
+  in `.env`/`.env.example`/`.env.test`/CI. With no DSN/key, `register`/
+  `onRequestError` (`src/instrumentation.ts`), the client instrumentation
+  (`src/instrumentation-client.ts`), and `PostHogProvider`
+  (`src/components/analytics/posthog-provider.tsx`) all no-op — no SDK
+  code even runs, let alone reports anything anywhere.
+- **`@sentry/nextjs`'s `init` is called directly in `instrumentation.ts`/
+  `instrumentation-client.ts` (Next.js 16's own convention — see the
+  bundled `node_modules/next/dist/docs` file-convention docs, read before
+  writing this), not via `withSentryConfig` wrapping `next.config.ts`.**
+  That wrapper's main value (automatic source-map upload during build)
+  needs a `SENTRY_AUTH_TOKEN` and calls out to Sentry's API at every
+  build — both irrelevant with no account, and undesirable build-time
+  network dependency the same way `@better-auth/cli` was in ADR-025.
+  `@sentry/cli`'s postinstall (a platform binary download, used only for
+  that upload) is denied in `pnpm-workspace.yaml`'s `allowBuilds` for the
+  same reason.
+- **`sendDefaultPii: false`** on both Sentry inits — errors are reported
+  without request bodies/headers by default, consistent with the privacy
+  posture already set for Better Auth.
+- **PostHog config is deliberately the more conservative options, not the
+  defaults:** `person_profiles: "never"` (this codebase never calls
+  `posthog.identify()` anywhere, so no PostHog event should carry
+  person-level identity either), `disable_session_recording: true`
+  (session replay is off entirely, not just unconfigured), and
+  `respect_dnt: true`. `capture_pageview: "history_change"` is used
+  instead of hand-wiring `usePathname`-based tracking, since posthog-js's
+  installed version (1.430.2) supports automatic SPA pageview tracking on
+  App Router client-side navigations natively.
+- **No server-side PostHog (`posthog-node`).** Nothing in this codebase
+  currently needs a server-emitted analytics event; adding it ahead of
+  that need would repeat the exact mistake AGENTS.md's dependency policy
+  already warns against ("don't add ... ahead of the phase that needs
+  it").
+
+**Consequences.** New dependencies: `@sentry/nextjs`, `posthog-js`. New
+files: `src/instrumentation.ts`, `src/instrumentation-client.ts`,
+`src/components/analytics/posthog-provider.tsx` (mounted once in
+`src/app/layout.tsx`, matching the existing `LiveStatusListener`
+pattern). No behavior change for anyone running this project without
+setting the new env vars — verified by running the full build/test suite
+with both unset (the default) and confirming no Sentry/PostHog network
+calls are made (their `init` calls are simply never reached).
+
+**Status.** Accepted.
+
+## ADR-027: Accessibility/security hardening pass and deployment target
+
+**Context.** Phase 15 also asked for "an accessibility/performance/
+security pass" and to resolve deployment. This audited the existing
+Phase 1-14 codebase directly (no accessibility/security-review tooling
+was available in this environment) rather than treating the pass as a
+formality.
+
+**Decision — fixes applied.**
+
+- **`FavouriteButton` didn't check `response.ok`** on its POST/DELETE
+  calls — a failed request (network error, 401 session expiry mid-session,
+  500) still read `response.json()` and set state as if it had succeeded,
+  which could show "Favourited" after a save that never persisted. Now
+  checks `response.ok`, surfaces a `role="alert"` error message, and
+  leaves `favouriteId` unchanged on failure (a failed delete keeps
+  showing "Favourited," which matches the server's actual state, rather
+  than a state that's now wrong in the other direction).
+- **Form validation errors lacked `aria-invalid`/`aria-describedby`/
+  `role="alert"`** on `sign-in-form.tsx`/`sign-up-form.tsx` — a screen
+  reader user got no indication a field was invalid or what the message
+  said beyond visually reading it. Added to all three fields on both
+  forms plus the server-error paragraph.
+- **`AnomalyBanner` and the map container had no ARIA semantics** for
+  assistive tech to pick up on: the banner is dynamically-appearing
+  content a screen reader should announce (`role="status"`); the Leaflet
+  map `<div>` had no accessible name at all (`role="img"` +
+  `aria-label` naming the station count).
+- **The map's popup HTML interpolated `stop.id` into an `href` without
+  escaping** (only `stop.name` was escaped). `stop.id` is always an
+  internally generated cuid today, so this wasn't exploitable in
+  practice, but it's inconsistent defense-in-depth given the adjacent
+  line escapes the same way — fixed to escape both.
+- **Security headers were entirely unset** — `next.config.ts` now sets a
+  `Content-Security-Policy` (scoped to the concrete external origins this
+  app actually uses: OSM tiles for the map, ADR-016/017, plus Sentry/
+  PostHog's typical ingest hosts so ADR-026 works once real credentials
+  are added), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, and a
+  `Permissions-Policy` denying geolocation/camera/microphone outright —
+  the geolocation denial is a direct, enforced expression of AGENTS.md's
+  "no user location/GPS collection" rule, not just a policy statement.
+  `script-src`/`style-src` need `'unsafe-inline'` (Next.js's hydration
+  script and Tailwind/Radix's inline styles aren't nonce-based here);
+  `'unsafe-eval'` is added only in development (Turbopack HMR needs it),
+  not production.
+- **`pnpm audit --prod`** was run: all 4 findings (moderate/high) are in
+  transitive dependencies of database-driver code paths this project
+  doesn't use — `mysql2`/`valibot` pulled in by `prisma`'s and
+  `better-auth`'s optional multi-database-driver support, never reachable
+  since this project only configures the Postgres/`pg` adapter and Zod
+  (not Valibot) for env validation. No code change fixes a vulnerability
+  in a driver never invoked; documented here so it isn't mistaken for an
+  unreviewed gap. Re-run `pnpm audit` before each deploy regardless.
+- **`src/app/api/favourites/route.ts`'s `DELETE`** was re-checked
+  specifically for IDOR (a classic favourites/bookmarks bug: deleting by
+  id without checking ownership) — it already scopes
+  `deleteMany({ where: { id, userId: session.user.id } })`, so this was
+  confirmed already correct, not a new fix.
+
+**Decision — documented, not fixed.** The Leaflet map's markers aren't
+keyboard-navigable pin-by-pin (a known Leaflet limitation; a full fix
+needs custom roving-tabindex/keyboard-popup handling, out of scope for
+this pass). The station list pages (`/stations`) reach every destination
+a marker links to and are fully keyboard/screen-reader accessible, so
+this is a documented gap with an accessible equivalent path, not a
+silent one — the same "explicit scope boundary" pattern used throughout
+this project's ADRs rather than a false accessibility claim.
+
+**Decision — deployment.** See DEPLOYMENT.md (new). Resolves
+ARCHITECTURE.md's open question (since Phase 10) about whether
+`/api/live/status`'s long-lived SSE connections work on Vercel's default
+function timeout: they don't cleanly, regardless of `maxDuration`, so the
+concrete recommendation is one long-running host (Fly.io/Railway/Render)
+running both the Next.js app and `worker/index.ts`, rather than Vercel —
+consistent with ADR-001's "single Next.js app, no monorepo" simplicity
+bias, now applied to hosting. A Vercel-hybrid alternative is documented
+for anyone who wants Vercel's DX badly enough to accept SSE reconnect
+blips.
+
+**Consequences.** No deployment has actually happened — no cloud accounts
+exist for this project to deploy to. `next.config.ts` gained a `headers()`
+function; verified locally (`pnpm dev`, `curl -I` against several routes)
+that the headers are served and none of the app's existing pages/API
+routes broke under the new CSP (all returned their expected status codes).
+Browser-interactive verification (confirming no CSP violation appears in
+DevTools' console when the Leaflet map renders) could not be completed in
+this environment — the Chrome browser automation tool was unavailable —
+so this is flagged rather than silently assumed clean; worth a manual
+check before relying on the CSP in production.
+
+**Status.** Accepted.

@@ -44,8 +44,19 @@ export function SignInForm() {
         <label htmlFor="email" className="text-sm font-medium">
           Email
         </label>
-        <Input id="email" type="email" autoComplete="email" {...register("email")} />
-        {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "email-error" : undefined}
+          {...register("email")}
+        />
+        {errors.email && (
+          <p id="email-error" role="alert" className="text-xs text-destructive">
+            {errors.email.message}
+          </p>
+        )}
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="password" className="text-sm font-medium">
@@ -55,11 +66,21 @@ export function SignInForm() {
           id="password"
           type="password"
           autoComplete="current-password"
+          aria-invalid={Boolean(errors.password)}
+          aria-describedby={errors.password ? "password-error" : undefined}
           {...register("password")}
         />
-        {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+        {errors.password && (
+          <p id="password-error" role="alert" className="text-xs text-destructive">
+            {errors.password.message}
+          </p>
+        )}
       </div>
-      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+      {serverError && (
+        <p role="alert" className="text-sm text-destructive">
+          {serverError}
+        </p>
+      )}
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Signing in…" : "Sign in"}
       </Button>

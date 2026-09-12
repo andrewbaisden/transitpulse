@@ -2,7 +2,7 @@
 
 ## Status
 
-This describes the system as built through **Phase 14** (static network
+This describes the system as built through **Phase 15** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, an
@@ -22,10 +22,13 @@ against real outcomes once its target window passes,
 `ReliabilityPrediction` — ADR-023 —, a `SimulationProvider`
 (`pnpm db:sync:simulation`) whose data is always tagged with a
 "Simulated" UI badge, never blended silently with live data — ADR-024 —,
-and self-hosted auth (Better Auth) with per-line/station `Favourite`s —
-ADR-025), plus the target shape for later phases so the current design
-can be checked against where it needs to go. See [Roadmap](#roadmap-phases-4-15)
-for what's *not* built yet.
+self-hosted auth (Better Auth) with per-line/station `Favourite`s —
+ADR-025, and inert-by-default Sentry/PostHog observability plus a
+security-headers/accessibility hardening pass and a documented (not yet
+executed) deployment target — ADR-026/ADR-027), plus the target shape for
+later phases so the current design can be checked against where it needs
+to go. All 15 roadmap phases are now built — see
+[Roadmap](#roadmap-phases-4-15) for what each one added.
 
 ## System overview
 
@@ -197,14 +200,17 @@ trigger.
 
 ## Deployment (target, not yet configured)
 
-Next.js app → Vercel. Postgres → a managed instance (Neon/RDS/etc,
-TBD when Phase 4+ needs a persistent hosted DB rather than local Docker).
-The `worker/index.ts` BullMQ worker (Phase 10, ADR-021) needs a
-long-running host (Fly.io/AWS/a managed Redis) once deployed — Vercel's
-serverless functions aren't suited to a long-lived queue consumer. The
-SSE route (`src/app/api/live/status`) also needs a runtime that supports
-long-lived streamed responses; not yet verified against Vercel's default
-function timeout — worth checking once deployment is actually configured.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full writeup (DECISIONS.md
+ADR-027) — no cloud accounts exist for this project, so nothing below has
+actually been deployed. Summary: the recommended target is **one
+long-running host** (Fly.io/Railway/Render) running both the Next.js app
+and the `worker/index.ts` BullMQ worker as two processes, plus managed
+Postgres and Redis. This resolves what had been an open question since
+Phase 10 — whether `src/app/api/live/status`'s long-lived SSE connections
+work on Vercel's serverless functions: they don't cleanly regardless of
+the `maxDuration` route config (every plan still caps execution time), so
+Vercel is documented only as a hybrid alternative in DEPLOYMENT.md, with
+the SSE route specifically moved off it.
 
 ## Roadmap (Phases 4-15)
 
@@ -221,7 +227,7 @@ function timeout — worth checking once deployment is actually configured.
 | 12 | ✅ Reliability prediction (baseline persistence), evaluated against actual outcomes — arrival prediction still out of scope (ADR-023) |
 | 13 | ✅ `SimulationProvider` implementing the same interface — explicit scenario, mandatory UI tag (ADR-024) |
 | 14 | ✅ Auth (Better Auth, self-hosted), `User`/`Favourite`, personalisation (ADR-025) |
-| 15 | Sentry, PostHog, accessibility/perf/security pass, production deployment |
+| 15 | ✅ Sentry + PostHog (inert by default), accessibility/security hardening pass, documented deployment target (ADR-026/ADR-027) |
 
 Full detail lives in the project brief this repo was scoped from, not
 duplicated here — this table exists so the current architecture's

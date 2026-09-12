@@ -24,6 +24,16 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_APP_NAME: z.string().min(1),
+    // Phase 15 (observability). Both optional and unset by default — this
+    // project has no real Sentry/PostHog account to provision, so every
+    // call site treats these as "inert until configured," never fabricating
+    // that errors/analytics are being captured when they aren't. See
+    // DECISIONS.md ADR-026. Sentry DSNs and PostHog project keys are
+    // designed to be embedded in client bundles, not secrets, so both are
+    // safe as NEXT_PUBLIC_ vars.
+    NEXT_PUBLIC_SENTRY_DSN: z.url().optional(),
+    NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
+    NEXT_PUBLIC_POSTHOG_HOST: z.url().default("https://us.i.posthog.com"),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
@@ -33,5 +43,8 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   },
 });
