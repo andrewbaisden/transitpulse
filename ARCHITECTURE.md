@@ -2,7 +2,7 @@
 
 ## Status
 
-This describes the system as built through **Phase 12** (static network
+This describes the system as built through **Phase 13** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, an
@@ -12,13 +12,16 @@ a time-weighted per-line reliability figure computed on demand from
 `ServiceStatus` history, `getLineReliability` — ADR-019 —, a per-station
 crowding section, `getStationOccupancy`, fetched live from TfL's real
 (static, never live) Crowding data — ADR-020 —, a BullMQ worker
-(`worker/index.ts`, `pnpm worker`) running the sync/sample jobs on Redis,
-publishing real status changes over pub/sub so open pages live-patch
-their status badges via Server-Sent Events — ADR-021 —, explainable
-anomaly detection comparing a line's last-24h reliability against its own
-rolling 7-day baseline, `getLineAnomaly` — ADR-022 —, and a persisted,
-baseline-persistence reliability forecast per line evaluated against real
-outcomes once its target window passes, `ReliabilityPrediction` — ADR-023),
+(`worker/index.ts`, `pnpm worker`) running the sync/sample/predict jobs
+on Redis, publishing real status changes over pub/sub so open pages
+live-patch their status badges via Server-Sent Events — ADR-021 —,
+explainable anomaly detection comparing a line's last-24h reliability
+against its own rolling 7-day baseline, `getLineAnomaly` — ADR-022 —, a
+persisted, baseline-persistence reliability forecast per line evaluated
+against real outcomes once its target window passes,
+`ReliabilityPrediction` — ADR-023 —, and a `SimulationProvider`
+(`pnpm db:sync:simulation`) whose data is always tagged with a
+"Simulated" UI badge, never blended silently with live data — ADR-024),
 plus the target shape for later phases so the current design can be
 checked against where it needs to go. See [Roadmap](#roadmap-phases-4-15)
 for what's *not* built yet.
@@ -85,9 +88,10 @@ for how each is called (a live, non-persisted per-request read, not
 ingestion; ADR-015/ADR-020). `getOccupancy`'s params were added when it
 was actually implemented — TfL's real Crowding API is per (stop, line)
 with no bulk form, so the original no-args stub was corrected rather than
-kept. `getVehicles` remains unimplemented — no phase through 11 has
-needed live vehicle positions; Phase 13's `SimulationProvider` is the
-next candidate that might.
+kept. `getVehicles` remains unimplemented — no phase through 13 has
+needed live vehicle positions, including `SimulationProvider` (ADR-024
+scoped it to service-status scenarios only, reusing DemoProvider's
+network rather than simulating vehicle movement).
 
 ## Domain model
 
@@ -213,7 +217,7 @@ function timeout — worth checking once deployment is actually configured.
 | 10 | ✅ Redis, BullMQ sync workers, realtime status badges via SSE — no monorepo split needed (ADR-021) |
 | 11 | ✅ Explainable anomaly detection — threshold deviation from a rolling baseline (ADR-022) |
 | 12 | ✅ Reliability prediction (baseline persistence), evaluated against actual outcomes — arrival prediction still out of scope (ADR-023) |
-| 13 | `SimulationProvider` implementing the same interface — scenario simulation |
+| 13 | ✅ `SimulationProvider` implementing the same interface — explicit scenario, mandatory UI tag (ADR-024) |
 | 14 | Auth (Better Auth or Clerk), `User`/`Favourite`, personalisation |
 | 15 | Sentry, PostHog, accessibility/perf/security pass, production deployment |
 

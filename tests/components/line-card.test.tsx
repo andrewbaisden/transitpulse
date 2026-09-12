@@ -10,6 +10,7 @@ const baseLine: LineWithStatus = {
   name: "Central",
   mode: "TUBE",
   color: "#DC241F",
+  source: "demo",
   status: "MINOR_DELAYS",
   statusDescription: "Signal failure at Leytonstone.",
   statusRecordedAt: new Date(),
@@ -47,5 +48,15 @@ describe("LineCard", () => {
 
     expect(screen.getByText("Severe Delays")).toBeInTheDocument();
     expect(screen.queryByText("Minor Delays")).not.toBeInTheDocument();
+  });
+
+  it("shows a Simulated tag only when the line's source is simulation", () => {
+    render(<LineCard line={{ ...baseLine, source: "simulation" }} />);
+    expect(screen.getByText("Simulated")).toBeInTheDocument();
+  });
+
+  it("does not show a Simulated tag for a real source", () => {
+    render(<LineCard line={baseLine} />);
+    expect(screen.queryByText("Simulated")).not.toBeInTheDocument();
   });
 });

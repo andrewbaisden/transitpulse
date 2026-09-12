@@ -935,3 +935,62 @@ dev` to pick up the regenerated Prisma client — it isn't part of
 Turbopack's hot-reload graph).
 
 **Status.** Accepted.
+
+---
+
+## ADR-024: SimulationProvider — composes DemoProvider's network, an explicit scenario, and a mandatory UI tag
+
+**Context.** The roadmap names Phase 13 as "`SimulationProvider`
+implementing the same interface — scenario simulation." AGENTS.md's
+non-negotiable rule: "Simulation data must always be visually
+distinguishable from live data — never silently blended." This is the
+first provider whose entire purpose is data that isn't measuring
+anything real, so that rule is the central design constraint, not an
+afterthought.
+
+**Decision.**
+
+- **Composes `DemoProvider` for `getLines`/`getStops`, doesn't duplicate
+  fixtures.** `SimulationProvider`'s job is to simulate *disruption
+  scenarios*, not invent a new network topology — reusing the existing
+  demo lines/stops means it's exercising the exact same
+  `ingestLines`/`ingestStops` path with zero new fixture data to keep in
+  sync.
+- **`getServiceStatus` applies an explicit, developer-supplied scenario
+  — never randomised.** A scenario is a plain list of `{lineExternalId,
+  statusSeverityLabel, description}`; any line not named in it reports
+  `GOOD_SERVICE`. Deterministic and reproducible on purpose: a random
+  scenario generator would be harder to explain and to test, and this
+  project has consistently favoured "explainable" over "impressive" for
+  every derived-data feature so far (reliability, anomaly, prediction).
+  A default scenario (one line with `SEVERE_DELAYS`) ships so
+  `pnpm db:sync:simulation` is useful out of the box; a caller can pass
+  its own via the constructor.
+- **`sourceName = "simulation"` creates entirely separate DB rows.**
+  Ingesting simulation data never touches or overwrites a demo/tfl line
+  with the same `externalRef` — `(source, externalRef)` provenance
+  (ADR-005) means a simulated "Central" line is a structurally distinct
+  row from the real one. This is the first layer of "never silently
+  blended."
+- **The second, UI-facing layer: a mandatory `SimulatedTag`.** Added
+  `source` to `LineWithStatus`/`LineDetail` (previously not exposed to
+  the UI at all) so `LineCard` and `LineStatusCard` can check
+  `source === "simulation"` and render a small violet "Simulated" pill
+  next to the line name/status badge. Every call site that renders a
+  line's identity or status now carries this check — there's no path
+  where simulated data reaches a screen unlabelled.
+- **`prisma/sync-simulation.ts`**, mirroring `sync-tfl.ts`'s manual
+  one-off shape exactly (`pnpm db:sync:simulation`) — proves
+  `SimulationProvider` flows through the identical ingestion pipeline
+  every other provider does, with no special-casing.
+
+**Consequences.** No schema change (reuses existing `source` columns), no
+new dependency. New files:
+`src/server/providers/simulation/simulation-provider.ts` (unit-tested),
+`src/components/network/simulated-tag.tsx`, `prisma/sync-simulation.ts`.
+Verified against the real dev database: `pnpm db:sync:simulation` created
+three separate `source: "simulation"` line rows (distinct from the
+existing demo/tfl ones), and the lines list page rendered the "Simulated"
+tag correctly for all of them.
+
+**Status.** Accepted.

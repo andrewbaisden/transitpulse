@@ -6,7 +6,7 @@ and disruption context on top of live service data, not just "next train in
 
 ![TransitPulse](docs/transitpulse.png)
 
-> **Current status: Phases 1–12 of 15.** A static network explorer with a
+> **Current status: Phases 1–13 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
@@ -18,9 +18,11 @@ and disruption context on top of live service data, not just "next train in
 > publishing real status changes over Redis so open pages live-patch their
 > status badges via Server-Sent Events (ADR-021), explainable,
 > threshold-based anomaly detection comparing a line's last 24h against
-> its own 7-day baseline (ADR-022), and a baseline-persistence reliability
+> its own 7-day baseline (ADR-022), a baseline-persistence reliability
 > forecast per line, evaluated against real outcomes once each target
-> window passes (ADR-023). See
+> window passes (ADR-023), and a `SimulationProvider` for scenario testing
+> (`pnpm db:sync:simulation`), always shown with a "Simulated" tag so it's
+> never mistaken for live data (ADR-024). See
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned.
 
@@ -195,8 +197,21 @@ third worker job, `predict-reliability`, once daily
 still out of scope — Phase 7 (ADR-018) already ruled out inferring an
 "actual" arrival TfL's API never confirms. See DECISIONS.md ADR-023.
 
-Phases 13–15 are architected for but not yet built: a simulation
-provider, personalisation, and production observability. See
+Phase 13 adds `SimulationProvider`
+(`src/server/providers/simulation/simulation-provider.ts`) — the same
+`TransitProvider` interface as TflProvider/DemoProvider, reusing
+DemoProvider's network structure and applying an explicit, developer-
+supplied disruption scenario (not randomised — reproducible and
+explainable, like every other derived-data feature so far). Every
+simulated line lands as its own separate `(source, externalRef)` row,
+never overwriting a real one, and `LineCard`/`LineStatusCard` render a
+"Simulated" tag wherever `source === "simulation"` — the concrete
+implementation of AGENTS.md's "never silently blend simulation with live
+data" rule. `pnpm db:sync:simulation` runs it through the same ingestion
+pipeline every provider uses. See DECISIONS.md ADR-024.
+
+Phases 14–15 are architected for but not yet built: personalisation and
+production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

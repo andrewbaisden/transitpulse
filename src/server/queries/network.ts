@@ -6,6 +6,10 @@ export interface LineWithStatus {
   name: string;
   mode: TransportMode;
   color: string | null;
+  // Which provider this line came from ("tfl" | "demo" | "simulation") —
+  // the UI uses this to badge simulated data distinctly. Never blend
+  // simulation with live data silently. See DECISIONS.md ADR-024.
+  source: string;
   status: ServiceStatusLevel;
   statusDescription: string | null;
   statusRecordedAt: Date;
@@ -46,6 +50,7 @@ export async function getNetworkOverview(): Promise<NetworkOverview | null> {
         name: line.name,
         mode: line.mode as TransportMode,
         color: line.color,
+        source: line.source,
         status: (latest?.status ?? "UNKNOWN") as ServiceStatusLevel,
         statusDescription: latest?.description ?? null,
         statusRecordedAt: latest?.recordedAt ?? line.updatedAt,

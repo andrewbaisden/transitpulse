@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ModeIcon, modeLabel } from "@/components/network/mode-icon";
 import { ServiceStatusBadge } from "@/components/network/service-status-badge";
+import { SimulatedTag } from "@/components/network/simulated-tag";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLiveServiceStatus } from "@/lib/live-status-store";
 import { formatRelativeToNow } from "@/lib/time";
@@ -29,6 +30,7 @@ export function LineCard({ line }: { line: LineWithStatus }) {
               <div className="flex items-center gap-1.5 font-medium">
                 <ModeIcon mode={line.mode} className="size-4 text-muted-foreground" />
                 {line.name}
+                {line.source === "simulation" && <SimulatedTag />}
               </div>
               <p className="text-xs text-muted-foreground">{modeLabel(line.mode)}</p>
             </div>

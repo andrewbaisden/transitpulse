@@ -16,6 +16,7 @@ describe("LineStatusCard", () => {
         status="MINOR_DELAYS"
         description="Signal failure at Leytonstone."
         recordedAt={new Date("2026-09-11T08:00:00Z")}
+        source="demo"
       />,
     );
 
@@ -30,6 +31,7 @@ describe("LineStatusCard", () => {
         status="MINOR_DELAYS"
         description="Signal failure at Leytonstone."
         recordedAt={new Date("2026-09-11T08:00:00Z")}
+        source="demo"
       />,
     );
 
@@ -52,6 +54,7 @@ describe("LineStatusCard", () => {
         status="MINOR_DELAYS"
         description="Signal failure at Leytonstone."
         recordedAt={new Date("2026-09-11T08:00:00Z")}
+        source="demo"
       />,
     );
 
@@ -64,5 +67,29 @@ describe("LineStatusCard", () => {
     });
 
     expect(screen.getByText("Minor Delays")).toBeInTheDocument();
+  });
+
+  it("shows a Simulated tag when the line's source is simulation, never for real sources", () => {
+    const { rerender } = render(
+      <LineStatusCard
+        lineId="central-id"
+        status="MINOR_DELAYS"
+        description={null}
+        recordedAt={new Date("2026-09-11T08:00:00Z")}
+        source="simulation"
+      />,
+    );
+    expect(screen.getByText("Simulated")).toBeInTheDocument();
+
+    rerender(
+      <LineStatusCard
+        lineId="central-id"
+        status="MINOR_DELAYS"
+        description={null}
+        recordedAt={new Date("2026-09-11T08:00:00Z")}
+        source="tfl"
+      />,
+    );
+    expect(screen.queryByText("Simulated")).not.toBeInTheDocument();
   });
 });

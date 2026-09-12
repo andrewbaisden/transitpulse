@@ -48,6 +48,7 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
         status={line.status}
         description={line.statusDescription}
         recordedAt={line.statusRecordedAt}
+        source={line.source}
       />
 
       <AnomalyBanner anomaly={anomaly} />
