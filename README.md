@@ -4,13 +4,14 @@ Real-time public transport intelligence for London — reliability, crowding,
 and disruption context on top of live service data, not just "next train in
 4 minutes."
 
-> **Current status: Phases 1–7 of 15.** A static network explorer with a
+> **Current status: Phases 1–8 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
-> map at `/map` plus a per-station location embed (ADR-017), and a
-> recurring status-history sampler (`pnpm db:sample:tfl`, ADR-018). No
-> reliability analytics, crowding, or prediction yet (see
+> map at `/map` plus a per-station location embed (ADR-017), a
+> recurring status-history sampler (`pnpm db:sample:tfl`, ADR-018), and a
+> time-weighted reliability figure per line computed on demand from that
+> history (ADR-019). No crowding or prediction yet (see
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned).
 
@@ -138,10 +139,18 @@ that can be done honestly. No scheduler yet (run it by hand or from a
 local cron/launchd entry) — Phase 10 adds real background workers. See
 DECISIONS.md ADR-018.
 
-Phases 8–15 are architected for but not yet built: reliability
-methodology, crowding/occupancy, realtime infrastructure, anomaly
-detection, arrival prediction, a simulation provider, personalisation, and
-production observability. See
+Phase 8 adds a reliability figure per line: `getLineReliability`
+(`src/server/queries/reliability.ts`) computes a time-weighted % of a
+7-day window spent in `GOOD_SERVICE` on demand from `ServiceStatus`
+history — no new table, no migration, no background job. Never
+extrapolates before a line's first real observation: a line with only a
+few hours of history honestly reports that coverage rather than a
+fabricated 7-day figure, shown via a `ReliabilitySummary` card on each
+line's detail page. See DECISIONS.md ADR-019.
+
+Phases 9–15 are architected for but not yet built: crowding/occupancy,
+realtime infrastructure, anomaly detection, arrival prediction, a
+simulation provider, personalisation, and production observability. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.

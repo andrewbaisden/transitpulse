@@ -544,3 +544,77 @@ existing ingestion logic, covered by a new test case in
 each call, asserting no duplicate row is appended).
 
 **Status.** Accepted.
+
+---
+
+## ADR-019: Reliability methodology — time-weighted % good service, computed on demand
+
+**Context.** Phase 7 (ADR-018) made `ServiceStatus` a genuine, deduped
+history of real status transitions per line. Phase 8 is the first phase
+that turns that into an actual reliability figure — the roadmap names it
+"Reliability methodology, baselines, `Reliability` entity," but no
+external project brief specifies the formula (confirmed with the user), so
+it's designed here from what's actually measurable.
+
+**Decision.**
+
+- **Formula: time-weighted % of a window spent in `GOOD_SERVICE`**, from
+  the real gaps between recorded transitions
+  (`src/server/domain/reliability/calculate-reliability.ts`) — not a
+  weighted score across severity levels (the weights would be a subjective
+  judgment call with no basis yet) and not a raw incident count (loses how
+  long each disruption actually lasted). This is the simplest figure that
+  matches what `ServiceStatus` actually records.
+- **Never extrapolate before the first real observation.** If a 7-day
+  window is requested but a line only has 3 hours of history (true right
+  after this phase ships), the honest answer is "100% based on 3 hours,"
+  not a fabricated 7-day figure — the project's non-negotiable "never
+  fabricate realtime values" rule applies here just as much as to live
+  data. `calculateReliability` returns the actual `coverageStart` used
+  (clamped to the earliest real observation, never before it), and
+  `src/components/network/reliability-summary.tsx` discloses this in the
+  UI ("Based on N hours/days of data since...") whenever coverage is less
+  than the full requested window, rather than hiding the caveat.
+- **Computed on demand at query time** (`src/server/queries/reliability.ts`
+  `getLineReliability`), not a persisted `Reliability` table. Per-line
+  `ServiceStatus` row counts stay small (Phase 7's dedup means only real
+  transitions get rows), so live aggregation over a 7-day window is cheap.
+  A persisted table would need its own periodic recomputation job — the
+  same staleness/scheduling problem Phase 7 already navigated around, and
+  ADR-002 defers real background jobs to Phase 10. The literal "Reliability
+  entity" from the roadmap is satisfied as a well-typed domain/query-layer
+  concept (`ReliabilityResult`, `LineReliability`), not necessarily a
+  Postgres table — revisit if a later phase needs to query reliability
+  across many lines at once cheaply (a real aggregate/materialized-view use
+  case), rather than one line at a time as today.
+- **`algorithmVersion` on every computed result**, satisfying ADR-005's
+  forward-looking note that derived-metric phases would need a way to tell
+  "which algorithm version produced this row" — here, "this value." Bumped
+  via `RELIABILITY_ALGORITHM_VERSION` in `calculate-reliability.ts`.
+- **7-day window.** Short enough that real data accumulates within days of
+  shipping (rather than requiring a 30-day wait before showing anything
+  meaningful), and matches how "weekly reliability" is commonly framed for
+  transit services.
+- **UI**: a `ReliabilitySummary` card on the line detail page
+  (`src/app/lines/[lineId]/page.tsx`), between the existing status card and
+  the stations list. Kept as its own component (not inlined in the page)
+  specifically so its branching display logic — percent, coverage
+  disclosure, "not enough data" — is unit-testable via RTL without a
+  database.
+
+**This is now a reliability algorithm, so AGENTS.md's non-negotiable rule
+applies going forward**: any future change to `calculateReliability`'s
+formula must bump `RELIABILITY_ALGORITHM_VERSION`, come with tests, and get
+a DECISIONS.md entry (a new ADR, not a silent edit to this one).
+
+**Consequences.** No Prisma schema change, no migration, no new
+dependency. New files: `src/server/domain/reliability/calculate-reliability.ts`
+(pure function, unit-tested with no DB —
+`tests/unit/domain/reliability/calculate-reliability.test.ts`),
+`src/server/queries/reliability.ts` (`getLineReliability`, integration
+-tested against the real test DB —
+`tests/unit/server/queries/reliability.test.ts`), and
+`src/components/network/reliability-summary.tsx` (RTL-tested —
+`tests/components/reliability-summary.test.tsx`).
+
+**Status.** Accepted.

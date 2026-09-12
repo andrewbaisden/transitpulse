@@ -2,14 +2,16 @@
 
 ## Status
 
-This describes the system as built through **Phase 7** (static network
+This describes the system as built through **Phase 8** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, an
 interactive Leaflet map at `/map` plus a per-station location embed,
 both backed by `getMapStops` over existing `lat`/`lon` — ADR-016/ADR-017 —,
-and a recurring status-history sampler over the existing append-only
-`ServiceStatus` table, `pnpm db:sample:tfl` — ADR-018), plus
+a recurring status-history sampler over the existing append-only
+`ServiceStatus` table, `pnpm db:sample:tfl` — ADR-018 —, and a
+time-weighted per-line reliability figure computed on demand from that
+history, `getLineReliability` — ADR-019), plus
 the target shape for later phases so the current design can be checked
 against where it needs to go. See [Roadmap](#roadmap-phases-4-15) for
 what's *not* built yet.
@@ -180,7 +182,7 @@ suited to long-lived queue consumers.
 | 5 | ✅ `getArrivals`, arrival boards, provenance on dynamic/observed data |
 | 6 | ✅ Leaflet map layer over existing `lat`/`lon` (originally MapLibre — ADR-017) |
 | 7 | ✅ Historical sampling of real observations — delay only; arrival error deferred (ADR-018) |
-| 8 | Reliability methodology, baselines, `Reliability` entity |
+| 8 | ✅ Reliability methodology — time-weighted % good service, computed on demand (ADR-019) |
 | 9 | `Occupancy` entity, `getOccupancy`, crowding source/confidence model |
 | 10 | Redis, BullMQ sync workers, realtime broadcast — worker/monorepo split decided here |
 | 11 | Explainable anomaly detection (deviation from rolling baseline) |
