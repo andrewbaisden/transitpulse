@@ -66,6 +66,7 @@ model Line {
   stops                  LineStop[]
   serviceStatus          ServiceStatus[]
   reliabilityPredictions ReliabilityPrediction[]
+  favourites             Favourite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -93,7 +94,8 @@ model Stop {
   source      String
   externalRef String
 
-  lines LineStop[]
+  lines      LineStop[]
+  favourites Favourite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -167,4 +169,96 @@ model ReliabilityPrediction {
   @@unique([lineId, source, targetWindowStart, targetWindowEnd])
   @@index([lineId, targetWindowEnd])
   @@map("reliability_predictions")
+}
+
+// Phase 14 — Better Auth's own core schema (self-hosted, no external
+// account/API key needed — see DECISIONS.md ADR-025). Field shapes are
+// exactly what better-auth@1.7.4's Prisma adapter expects at runtime
+// (verified against its bundled schema definition, not assumed from
+// memory) — @@map only renames the SQL table, Prisma's generated client
+// property (prisma.user, prisma.session, ...) still comes from the model
+// name above, which is what the adapter looks up by.
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  favourites    Favourite[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// A favourite is either a line or a station, never both, never neither —
+// enforced at the query-layer boundary (src/server/queries/favourites.ts),
+// not by the schema itself (a DB-level XOR check across two nullable FKs
+// isn't expressible as a plain Prisma unique constraint on Postgres, since
+// NULL is never equal to NULL in a unique index). See DECISIONS.md
+// ADR-025.
+model Favourite {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  lineId String?
+  line   Line?   @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  stopId String?
+  stop   Stop?   @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, lineId])
+  @@unique([userId, stopId])
+  @@map("favourites")
 }

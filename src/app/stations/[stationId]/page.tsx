@@ -1,11 +1,15 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrivalBoard } from "@/components/network/arrival-board";
+import { FavouriteButton } from "@/components/network/favourite-button";
 import { LineBadge } from "@/components/network/line-badge";
 import { NetworkMap } from "@/components/network/network-map";
 import { OccupancySummary } from "@/components/network/occupancy-summary";
 import { StopHierarchyBreadcrumb } from "@/components/network/stop-hierarchy-breadcrumb";
+import { auth } from "@/lib/auth";
 import { getArrivalBoard } from "@/server/queries/arrivals";
+import { getFavouriteId } from "@/server/queries/favourites";
 import { getStationOccupancy } from "@/server/queries/occupancy";
 import { getStationDetail } from "@/server/queries/stops";
 
@@ -15,19 +19,24 @@ export default async function StationDetailPage({
   params: Promise<{ stationId: string }>;
 }) {
   const { stationId } = await params;
-  const [station, board, occupancies] = await Promise.all([
+  const session = await auth.api.getSession({ headers: await headers() });
+  const [station, board, occupancies, favouriteId] = await Promise.all([
     getStationDetail(stationId),
     getArrivalBoard(stationId),
     getStationOccupancy(stationId),
+    session ? getFavouriteId(session.user.id, { stopId: stationId }) : Promise.resolve(null),
   ]);
 
   if (!station) notFound();
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <StopHierarchyBreadcrumb station={station} />
-        <h1 className="text-3xl font-bold tracking-tight">{station.name}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <StopHierarchyBreadcrumb station={station} />
+          <h1 className="text-3xl font-bold tracking-tight">{station.name}</h1>
+        </div>
+        <FavouriteButton target={{ stopId: station.id }} initialFavouriteId={favouriteId} />
       </div>
 
       <div>

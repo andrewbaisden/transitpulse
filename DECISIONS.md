@@ -994,3 +994,72 @@ existing demo/tfl ones), and the lines list page rendered the "Simulated"
 tag correctly for all of them.
 
 **Status.** Accepted.
+
+---
+
+## ADR-025: Better Auth (self-hosted) over Clerk, no email verification, app-boundary-enforced Favourite
+
+**Context.** The roadmap names Phase 14 as "Auth (Better Auth or Clerk),
+`User`/`Favourite`, personalisation." AGENTS.md's privacy rule: "No user
+location/GPS collection. No PII beyond what a future auth provider (Phase
+14) requires."
+
+**Decision.**
+
+- **Better Auth, not Clerk.** Clerk requires creating and configuring a
+  third-party account/API key — not something that can be provisioned
+  without the project owner's own action. Better Auth is self-hosted: it
+  runs entirely against the Postgres database this project already has,
+  via `better-auth/adapters/prisma`, with no external account needed.
+- **The core `User`/`Session`/`Account`/`Verification` schema was
+  hand-written to match `better-auth@1.7.4`'s actual bundled field
+  definitions** (`@better-auth/core`'s `get-tables.ts`), not assumed from
+  general familiarity with the library or generated via its CLI — the
+  CLI (`@better-auth/cli`) pulls in its own independent, older
+  `@prisma/client@5.x` and `better-sqlite3` (a native binary) purely for
+  one-time schema generation, which felt like more dependency/build-script
+  risk than warranted for a task this project could do just as correctly
+  by reading the library's own source. Verified correct by actually
+  signing up a real user end-to-end (see Consequences), not just by
+  typechecking.
+- **Email verification is off**
+  (`emailAndPassword.requireEmailVerification: false`). No email-sending
+  service is configured in this project (Resend/SES/etc. would be a new
+  external dependency with its own account to provision) — pretending to
+  "send" a verification email that never arrives would violate this
+  project's "never fabricate" ethos in spirit, the same as inventing a
+  transit number. Revisit if a future phase adds real email sending.
+- **`Favourite` can point at a `Line` or a `Stop`, never both, never
+  neither — enforced at the API route boundary
+  (`src/app/api/favourites/route.ts`'s Zod `.refine()`), not by the
+  database schema.** A Postgres unique index over two nullable columns
+  can't express "exactly one is set" (`NULL` is never equal to `NULL` in
+  a unique index), so this is an application-level invariant, documented
+  rather than silently assumed.
+- **No `next/dynamic` or separate auth pages framework** — plain
+  `/sign-in`, `/sign-up`, `/favourites` routes using existing UI
+  primitives (`Button`/`Input`) and **React Hook Form**, which the stack
+  table has named as "installed, unwired until a real form exists" since
+  Phase 1-3 — this is that form, no new dependency needed for it.
+- **Session read server-side via `auth.api.getSession({ headers })`**
+  on every page that needs to know the current user (line/station detail
+  pages, `/favourites`) — passed down as an `initialFavouriteId` prop so
+  `FavouriteButton` renders in the correct state immediately, no
+  client-side fetch-on-mount flash before the star can be toggled.
+
+**Consequences.** New dependency: `better-auth`. New migration (`User`,
+`Session`, `Account`, `Verification`, `Favourite` tables) and new required
+env vars `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL` (same treatment as
+`REDIS_URL` — required, no guessed default for the secret). New files:
+`src/lib/auth.ts`, `src/lib/auth-client.ts`,
+`src/app/api/auth/[...all]/route.ts`, `src/app/api/favourites/route.ts`,
+`src/server/queries/favourites.ts`, `src/components/auth/*`,
+`src/components/network/favourite-button.tsx`, `/sign-in`, `/sign-up`,
+`/favourites` pages. Verified end-to-end against the real dev database:
+signed up a real user via `POST /api/auth/sign-up/email`, confirmed the
+row landed in Postgres, favourited a real line via the session cookie,
+confirmed the upsert was idempotent (same `favouriteId` on a repeat
+call), and confirmed `/favourites` rendered it — then cleaned up the test
+user.
+
+**Status.** Accepted.

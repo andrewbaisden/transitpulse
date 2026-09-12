@@ -2,7 +2,7 @@
 
 ## Status
 
-This describes the system as built through **Phase 13** (static network
+This describes the system as built through **Phase 14** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
 via `src/server/domain/live/`, not ingested — ADR-015 —, an
@@ -19,11 +19,12 @@ explainable anomaly detection comparing a line's last-24h reliability
 against its own rolling 7-day baseline, `getLineAnomaly` — ADR-022 —, a
 persisted, baseline-persistence reliability forecast per line evaluated
 against real outcomes once its target window passes,
-`ReliabilityPrediction` — ADR-023 —, and a `SimulationProvider`
+`ReliabilityPrediction` — ADR-023 —, a `SimulationProvider`
 (`pnpm db:sync:simulation`) whose data is always tagged with a
-"Simulated" UI badge, never blended silently with live data — ADR-024),
-plus the target shape for later phases so the current design can be
-checked against where it needs to go. See [Roadmap](#roadmap-phases-4-15)
+"Simulated" UI badge, never blended silently with live data — ADR-024 —,
+and self-hosted auth (Better Auth) with per-line/station `Favourite`s —
+ADR-025), plus the target shape for later phases so the current design
+can be checked against where it needs to go. See [Roadmap](#roadmap-phases-4-15)
 for what's *not* built yet.
 
 ## System overview
@@ -136,9 +137,10 @@ Network 1──* Line 1──* LineStop *──1 Stop (self-referential: HUB > S
   DECISIONS.md ADR-005.
 - **Deliberately not modeled yet**: `Route` (beyond `LineStop.sequence`),
   `Trip`, `Vehicle`, `ArrivalPrediction` (arrival-error specifically —
-  deferred since Phase 7, ADR-018), `Disruption`,
-  `User`/`Favourite`/`Alert`. These get added in the phase that actually
-  needs them.
+  deferred since Phase 7, ADR-018), `Disruption`, `Alert`. These get added
+  in the phase that actually needs them. `User`/`Favourite` were added in
+  Phase 14 — see ADR-025 (`User`/`Session`/`Account`/`Verification` are
+  Better Auth's own core schema, not this project's).
 - **Deliberately never modeled as tables**: `Reliability` and `Occupancy`
   were both named in the original roadmap as future "entities," but
   Phases 8 and 9 computed them on demand instead (a time-weighted %
@@ -218,7 +220,7 @@ function timeout — worth checking once deployment is actually configured.
 | 11 | ✅ Explainable anomaly detection — threshold deviation from a rolling baseline (ADR-022) |
 | 12 | ✅ Reliability prediction (baseline persistence), evaluated against actual outcomes — arrival prediction still out of scope (ADR-023) |
 | 13 | ✅ `SimulationProvider` implementing the same interface — explicit scenario, mandatory UI tag (ADR-024) |
-| 14 | Auth (Better Auth or Clerk), `User`/`Favourite`, personalisation |
+| 14 | ✅ Auth (Better Auth, self-hosted), `User`/`Favourite`, personalisation (ADR-025) |
 | 15 | Sentry, PostHog, accessibility/perf/security pass, production deployment |
 
 Full detail lives in the project brief this repo was scoped from, not

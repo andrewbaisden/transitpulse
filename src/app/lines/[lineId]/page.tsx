@@ -1,11 +1,15 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnomalyBanner } from "@/components/network/anomaly-banner";
+import { FavouriteButton } from "@/components/network/favourite-button";
 import { LineStatusCard } from "@/components/network/line-status-card";
 import { ModeIcon, modeLabel } from "@/components/network/mode-icon";
 import { PredictionSummary } from "@/components/network/prediction-summary";
 import { ReliabilitySummary } from "@/components/network/reliability-summary";
+import { auth } from "@/lib/auth";
 import { getLineAnomaly } from "@/server/queries/anomaly";
+import { getFavouriteId } from "@/server/queries/favourites";
 import { getLineDetail } from "@/server/queries/lines";
 import { getLinePredictionSummary } from "@/server/queries/prediction";
 import { getLineReliability } from "@/server/queries/reliability";
@@ -20,10 +24,12 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
 
   if (!line) notFound();
 
-  const [reliability, anomaly, prediction] = await Promise.all([
+  const session = await auth.api.getSession({ headers: await headers() });
+  const [reliability, anomaly, prediction, favouriteId] = await Promise.all([
     getLineReliability(lineId),
     getLineAnomaly(lineId),
     getLinePredictionSummary(lineId),
+    session ? getFavouriteId(session.user.id, { lineId }) : Promise.resolve(null),
   ]);
 
   return (
@@ -40,6 +46,9 @@ export default async function LineDetailPage({ params }: { params: Promise<{ lin
             {modeLabel(line.mode)}
           </div>
           <h1 className="text-3xl font-bold tracking-tight">{line.name}</h1>
+        </div>
+        <div className="ml-auto">
+          <FavouriteButton target={{ lineId: line.id }} initialFavouriteId={favouriteId} />
         </div>
       </div>
 

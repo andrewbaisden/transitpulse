@@ -17,6 +17,10 @@ export const env = createEnv({
     // Phase 10: required like DATABASE_URL, not optional — both the app
     // (SSE route) and worker/index.ts need it. See DECISIONS.md ADR-021.
     REDIS_URL: z.url(),
+    // Phase 14 (Better Auth). BETTER_AUTH_SECRET signs session
+    // cookies/tokens — required, no default (never guess a secret).
+    BETTER_AUTH_SECRET: z.string().min(1),
+    BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
   },
   client: {
     NEXT_PUBLIC_APP_NAME: z.string().min(1),
@@ -26,6 +30,8 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     TFL_APP_KEY: process.env.TFL_APP_KEY,
     REDIS_URL: process.env.REDIS_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
   },
 });

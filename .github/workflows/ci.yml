@@ -12,6 +12,8 @@ env:
   # manually — see DECISIONS.md ADR-021), env.ts only validates the URL
   # shape at import time.
   REDIS_URL: "redis://localhost:6379"
+  BETTER_AUTH_SECRET: "ci-secret-not-for-production-use-0123456789"
+  BETTER_AUTH_URL: "http://localhost:3000"
 
 jobs:
   lint-test-build:

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserMenu } from "@/components/auth/user-menu";
 import { SearchBox } from "@/components/network/search-box";
 
 const NAV_LINKS = [
@@ -28,7 +29,10 @@ export function SiteHeader() {
             ))}
           </nav>
         </div>
-        <SearchBox />
+        <div className="flex items-center gap-4">
+          <SearchBox />
+          <UserMenu />
+        </div>
       </div>
     </header>
   );

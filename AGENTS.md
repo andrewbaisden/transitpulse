@@ -87,8 +87,9 @@ ahead of the phase that needs them.
 
 ## Privacy
 
-No user location/GPS collection. No PII beyond what a future auth provider
-(Phase 14) requires.
+No user location/GPS collection. No PII beyond what Better Auth (Phase
+14, ADR-025) itself requires — name, email, and hashed password only; no
+email verification, so no email-sending service holds user emails either.
 
 ## Commits
 

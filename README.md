@@ -6,7 +6,7 @@ and disruption context on top of live service data, not just "next train in
 
 ![TransitPulse](docs/transitpulse.png)
 
-> **Current status: Phases 1–13 of 15.** A static network explorer with a
+> **Current status: Phases 1–14 of 15.** A static network explorer with a
 > real `TflProvider` (`pnpm db:sync:tfl`) alongside the seeded demo data,
 > live arrival boards on each station page (fetched per request, not
 > stored — see DECISIONS.md ADR-015), an interactive Leaflet network
@@ -20,9 +20,10 @@ and disruption context on top of live service data, not just "next train in
 > threshold-based anomaly detection comparing a line's last 24h against
 > its own 7-day baseline (ADR-022), a baseline-persistence reliability
 > forecast per line, evaluated against real outcomes once each target
-> window passes (ADR-023), and a `SimulationProvider` for scenario testing
+> window passes (ADR-023), a `SimulationProvider` for scenario testing
 > (`pnpm db:sync:simulation`), always shown with a "Simulated" tag so it's
-> never mistaken for live data (ADR-024). See
+> never mistaken for live data (ADR-024), and self-hosted auth (Better
+> Auth) with per-line/station favourites (ADR-025). See
 > [Roadmap](#roadmap) below and [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > what's built vs planned.
 
@@ -67,9 +68,9 @@ the same pipeline in a later phase without a domain rewrite.
 | Testing | Vitest, React Testing Library, Playwright |
 | CI | GitHub Actions |
 
-Redis and BullMQ were installed in Phase 10 (ADR-021); an auth provider
-is still **not** installed — no real use case until Phase 14 (see
-[DECISIONS.md](./DECISIONS.md)).
+Redis and BullMQ were installed in Phase 10 (ADR-021); Better Auth
+(self-hosted, not a third-party account provider) was installed in Phase
+14 (ADR-025) — see [DECISIONS.md](./DECISIONS.md) for both.
 
 ## Local setup
 
@@ -91,6 +92,9 @@ Copy `.env.example` to `.env` first if it doesn't already exist locally.
 | `NODE_ENV` | yes (defaults to `development`) | |
 | `NEXT_PUBLIC_APP_NAME` | yes | Display name, client-exposed |
 | `TFL_APP_KEY` | only for `pnpm db:sync:tfl` and any page reading a `source: "tfl"` stop's arrivals | TfL Unified API key — get one at [api-portal.tfl.gov.uk](https://api-portal.tfl.gov.uk) |
+| `REDIS_URL` | yes | Redis connection string (BullMQ + SSE pub/sub — ADR-021) |
+| `BETTER_AUTH_SECRET` | yes | Signs session cookies — generate your own, see `.env.example` |
+| `BETTER_AUTH_URL` | yes (defaults to `http://localhost:3000`) | Base URL Better Auth issues cookies/callbacks against |
 
 ### Database
 
@@ -210,8 +214,21 @@ implementation of AGENTS.md's "never silently blend simulation with live
 data" rule. `pnpm db:sync:simulation` runs it through the same ingestion
 pipeline every provider uses. See DECISIONS.md ADR-024.
 
-Phases 14–15 are architected for but not yet built: personalisation and
-production observability. See
+Phase 14 adds auth and personalisation: **Better Auth**, self-hosted
+against the existing Postgres/Prisma setup (`src/lib/auth.ts`) — not a
+third-party account provider (Clerk), since that would need an external
+account this project can't provision on its own. Email/password only, no
+email verification (no email-sending service configured — see DECISIONS.md
+ADR-025 for why that's a deliberate scope decision, not an oversight).
+`Favourite` lets a signed-in user star a line or station
+(`src/components/network/favourite-button.tsx`, `/favourites`) — exactly
+one of `lineId`/`stopId`, enforced at the API boundary rather than the
+schema (a Postgres unique index can't express "exactly one of two
+nullable columns" — `NULL` is never equal to `NULL`). See DECISIONS.md
+ADR-025.
+
+Phase 15 is architected for but not yet built: production observability
+(Sentry, PostHog) and deployment. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the roadmap-at-a-glance and
 [DECISIONS.md](./DECISIONS.md) for the ADRs already made in anticipation of
 them.
