@@ -31,16 +31,18 @@ export default async function StationDetailPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-start justify-between gap-3">
+      <div className="network-grid flex items-start justify-between gap-3 rounded-3xl border border-white bg-white/85 p-6 shadow-soft sm:p-8">
         <div>
           <StopHierarchyBreadcrumb station={station} />
-          <h1 className="text-3xl font-bold tracking-tight">{station.name}</h1>
+          <h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] text-[#0a2540] sm:text-5xl">
+            {station.name}
+          </h1>
         </div>
         <FavouriteButton target={{ stopId: station.id }} initialFavouriteId={favouriteId} />
       </div>
 
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Lines</h2>
+      <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">Lines</h2>
         <div className="flex flex-wrap gap-2">
           {station.lines.map((line) => (
             <Link key={line.id} href={`/lines/${line.id}`}>
@@ -51,11 +53,11 @@ export default async function StationDetailPage({
       </div>
 
       {station.children.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-lg font-semibold">Platforms</h2>
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
+          <h2 className="mb-3 text-lg font-semibold text-[#0a2540]">Platforms</h2>
           <ul className="flex flex-col gap-1">
             {station.children.map((child) => (
-              <li key={child.id} className="rounded-md border bg-background px-3 py-2 text-sm">
+              <li key={child.id} className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
                 {child.name}
               </li>
             ))}
@@ -66,19 +68,21 @@ export default async function StationDetailPage({
       {station.lat !== null && station.lon !== null && (
         <div>
           <h2 className="mb-3 text-lg font-semibold">Location</h2>
-          <NetworkMap
-            stops={[
-              {
-                id: station.id,
-                name: station.name,
-                lat: station.lat,
-                lon: station.lon,
-                lineColor: station.lines[0]?.color ?? null,
-              },
-            ]}
-            className="h-[300px] w-full rounded-lg border"
-            maxZoom={15}
-          />
+          <div className="overflow-hidden rounded-3xl border border-white bg-white p-2 shadow-soft">
+            <NetworkMap
+              stops={[
+                {
+                  id: station.id,
+                  name: station.name,
+                  lat: station.lat,
+                  lon: station.lon,
+                  lineColor: station.lines[0]?.color ?? null,
+                },
+              ]}
+              className="h-[300px] w-full rounded-2xl"
+              maxZoom={15}
+            />
+          </div>
         </div>
       )}
 

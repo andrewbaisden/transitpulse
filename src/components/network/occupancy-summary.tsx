@@ -10,7 +10,7 @@ const DEFAULT_LINE_COLOR = "#6b7280"; // zinc-500 — matches LineBadge's own fa
 export function OccupancySummary({ occupancies }: { occupancies: StationLineOccupancy[] }) {
   if (occupancies.length === 0) {
     return (
-      <div className="rounded-lg border bg-background p-4">
+      <div className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-sm">
         <h2 className="text-sm font-medium text-muted-foreground">Crowding</h2>
         <p className="mt-1 text-sm text-muted-foreground">Not enough data yet.</p>
       </div>
@@ -18,7 +18,7 @@ export function OccupancySummary({ occupancies }: { occupancies: StationLineOccu
   }
 
   return (
-    <div className="rounded-lg border bg-background p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-sm">
       <h2 className="mb-2 text-sm font-medium text-muted-foreground">Crowding</h2>
       <ul className="flex flex-col gap-2">
         {occupancies.map((line) => (

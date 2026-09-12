@@ -45,7 +45,7 @@ export function SearchBox() {
     <>
       <Button
         variant="outline"
-        className="w-full justify-start text-muted-foreground sm:w-64"
+        className="h-10 w-full justify-start rounded-full border-slate-200 bg-white/80 px-4 text-slate-500 shadow-sm hover:border-[#635bff]/35 hover:bg-white sm:w-64"
         onClick={() => setOpen(true)}
         data-testid="search-trigger"
       >

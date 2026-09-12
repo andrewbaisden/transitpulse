@@ -28,7 +28,7 @@ export function ArrivalBoard({ board }: { board: ArrivalBoardData }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <ul className="flex flex-col divide-y rounded-lg border">
+      <ul className="flex flex-col divide-y overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm">
         {board.rows.map((row) => (
           // No stable id on a live prediction — line + destination +
           // expectedArrival is unique enough within one page-load snapshot.

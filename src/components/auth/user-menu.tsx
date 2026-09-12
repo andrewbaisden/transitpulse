@@ -16,10 +16,16 @@ export function UserMenu() {
   if (!session) {
     return (
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/sign-in" className="text-muted-foreground hover:text-foreground">
+        <Link
+          href="/sign-in"
+          className="hidden font-medium text-slate-600 hover:text-[#0a2540] sm:block"
+        >
           Sign in
         </Link>
-        <Link href="/sign-up" className="text-muted-foreground hover:text-foreground">
+        <Link
+          href="/sign-up"
+          className="rounded-full bg-[#0a2540] px-3.5 py-2 font-semibold text-white transition hover:bg-[#163f63]"
+        >
           Sign up
         </Link>
       </div>

@@ -12,7 +12,7 @@ export function PredictionSummary({ prediction }: { prediction: LinePredictionSu
   }
 
   return (
-    <div className="rounded-lg border bg-background p-4">
+    <div className="rounded-2xl border border-violet-200/80 bg-[linear-gradient(135deg,#ffffff_0%,#f6f3ff_100%)] p-5 shadow-sm">
       <h2 className="text-sm font-medium text-muted-foreground">Forecast</h2>
       <p className="mt-1 text-2xl font-bold tracking-tight">
         {prediction.latest.predictedGoodServicePercent}%{" "}

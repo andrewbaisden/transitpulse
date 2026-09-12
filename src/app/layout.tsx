@@ -25,12 +25,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-muted/30">
+      <body className="min-h-full flex flex-col">
         <Providers>
           <PostHogProvider />
           <LiveStatusListener />
           <SiteHeader />
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+          <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-10 sm:px-8 sm:py-14 lg:px-10">
+            {children}
+          </main>
         </Providers>
       </body>
     </html>

@@ -27,13 +27,15 @@ export function LineStatusCard({
   const live = useLiveServiceStatus(lineId, { status, description, recordedAt });
 
   return (
-    <div className="rounded-lg border bg-background p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <ServiceStatusBadge status={live.status} className="text-base" />
         {source === "simulation" && <SimulatedTag />}
       </div>
-      {live.description && <p className="mt-1 text-sm text-muted-foreground">{live.description}</p>}
-      <p className="mt-2 text-xs text-muted-foreground">
+      {live.description && (
+        <p className="mt-3 text-sm leading-6 text-slate-600">{live.description}</p>
+      )}
+      <p className="mt-3 text-xs text-slate-400">
         Last updated {formatLondonDateTime(live.recordedAt)}
       </p>
     </div>

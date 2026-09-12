@@ -33,7 +33,7 @@ function describeCoverage(reliability: LineReliability): string {
 export function ReliabilitySummary({ reliability }: { reliability: LineReliability | null }) {
   if (!reliability) {
     return (
-      <div className="rounded-lg border bg-background p-4">
+      <div className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-sm">
         <h2 className="text-sm font-medium text-muted-foreground">Reliability</h2>
         <p className="mt-1 text-sm text-muted-foreground">Not enough data yet.</p>
       </div>
@@ -41,7 +41,7 @@ export function ReliabilitySummary({ reliability }: { reliability: LineReliabili
   }
 
   return (
-    <div className="rounded-lg border bg-background p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-sm">
       <h2 className="text-sm font-medium text-muted-foreground">Reliability</h2>
       <p className="mt-1 text-2xl font-bold tracking-tight">
         {reliability.goodServicePercent}%{" "}

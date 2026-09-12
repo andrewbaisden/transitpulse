@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-geist-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,30 +49,30 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: #f6f9fc;
+  --foreground: #0a2540;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: #0a2540;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: #0a2540;
+  --primary: #635bff;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eef6;
+  --secondary-foreground: #0a2540;
+  --muted: #edf2f7;
+  --muted-foreground: #52677e;
+  --accent: #eef1ff;
+  --accent-foreground: #3f35c8;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --border: #d9e2ec;
+  --input: #d9e2ec;
+  --ring: #635bff;
+  --chart-1: #635bff;
+  --chart-2: #00d4ff;
+  --chart-3: #ff5996;
+  --chart-4: #ff8a00;
+  --chart-5: #00a878;
+  --radius: 0.8rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -123,8 +123,42 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at 10% -10%, rgb(99 91 255 / 10%), transparent 30rem),
+      radial-gradient(circle at 92% 4%, rgb(0 212 255 / 8%), transparent 28rem);
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
+  }
+
+  ::selection {
+    background: rgb(99 91 255 / 22%);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .network-grid {
+    background-image:
+      linear-gradient(to right, rgb(10 37 64 / 5%) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(10 37 64 / 5%) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .aurora-sweep {
+    background:
+      radial-gradient(ellipse at 82% 12%, rgb(255 215 77 / 88%) 0 7%, transparent 28%),
+      radial-gradient(ellipse at 92% 35%, rgb(255 92 138 / 86%) 0 10%, transparent 38%),
+      radial-gradient(ellipse at 70% 6%, rgb(99 91 255 / 82%) 0 12%, transparent 42%),
+      radial-gradient(ellipse at 96% 4%, rgb(0 212 255 / 72%) 0 8%, transparent 32%);
+    filter: blur(1px) saturate(112%);
+  }
+
+  .shadow-soft {
+    box-shadow: 0 22px 60px rgb(10 37 64 / 10%);
   }
 }

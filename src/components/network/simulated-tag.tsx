@@ -6,7 +6,7 @@
  */
 export function SimulatedTag() {
   return (
-    <span className="inline-flex items-center rounded-full border border-violet-500/50 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-violet-700 uppercase dark:text-violet-300">
+    <span className="inline-flex items-center rounded-full border border-violet-300 bg-[repeating-linear-gradient(135deg,#f5f3ff,#f5f3ff_4px,#ede9fe_4px,#ede9fe_8px)] px-2 py-0.5 text-[9px] font-bold tracking-[0.12em] text-violet-700 uppercase shadow-sm">
       Simulated
     </span>
   );

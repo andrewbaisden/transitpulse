@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getLineColor } from "@/lib/line-colors";
 import { getUserFavourites } from "@/server/queries/favourites";
 
 export default async function FavouritesPage() {
@@ -13,7 +14,12 @@ export default async function FavouritesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Favourites</h1>
+      <div>
+        <p className="text-xs font-bold tracking-[0.18em] text-[#635bff] uppercase">Your network</p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] text-[#0a2540] sm:text-5xl">
+          Favourites
+        </h1>
+      </div>
 
       {isEmpty && (
         <p className="text-sm text-muted-foreground">
@@ -22,7 +28,7 @@ export default async function FavouritesPage() {
       )}
 
       {favourites.lines.length > 0 && (
-        <div>
+        <div className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-sm">
           <h2 className="mb-3 text-lg font-semibold">Lines</h2>
           <ul className="flex flex-col gap-1">
             {favourites.lines.map((line) => (
@@ -34,7 +40,7 @@ export default async function FavouritesPage() {
                   <span
                     aria-hidden
                     className="size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: line.color ?? "#52525b" }}
+                    style={{ backgroundColor: getLineColor(line.name, line.color) }}
                   />
                   {line.name}
                 </Link>
@@ -45,7 +51,7 @@ export default async function FavouritesPage() {
       )}
 
       {favourites.stops.length > 0 && (
-        <div>
+        <div className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-sm">
           <h2 className="mb-3 text-lg font-semibold">Stations</h2>
           <ul className="flex flex-col gap-1">
             {favourites.stops.map((stop) => (
