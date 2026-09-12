@@ -6,7 +6,20 @@ on:
   pull_request:
 
 env:
-  DATABASE_URL: "postgresql://transitpulse:transitpulse@localhost:5432/transitpulse"
+  # 127.0.0.1, not localhost: on the Ubuntu runner, "localhost" can
+  # resolve to ::1 (IPv6), but the postgres service container's port is
+  # only published on 0.0.0.0 (IPv4) — an IPv6-resolved connection gets
+  # ECONNREFUSED with nothing listening on ::1, while an IPv4 one
+  # succeeds. Since each test file opens its own connection independently
+  # (no shared pool across vitest's per-file isolation), this surfaced as
+  # scattered, intermittent test failures rather than a clean pass/fail.
+  DATABASE_URL: "postgresql://transitpulse:transitpulse@127.0.0.1:5432/transitpulse"
+  # Required by src/lib/env.ts with no default — missing here never broke
+  # lint-test-build (its own `pnpm build` step never ran; every prior CI
+  # run failed earlier, at typecheck or the test-DB connection issue
+  # above), but broke the e2e job's Playwright webServer, which does run
+  # a real `next build`.
+  NEXT_PUBLIC_APP_NAME: "TransitPulse"
   # No Redis service in CI: nothing in typecheck/lint/test/build actually
   # opens a connection (Phase 10's worker and SSE route are verified
   # manually — see DECISIONS.md ADR-021), env.ts only validates the URL
@@ -71,9 +84,9 @@ jobs:
 
       - name: Unit + component tests
         env:
-          DATABASE_URL: "postgresql://transitpulse:transitpulse@localhost:5432/transitpulse_test"
+          DATABASE_URL: "postgresql://transitpulse:transitpulse@127.0.0.1:5432/transitpulse_test"
         run: |
-          PGPASSWORD=transitpulse psql -h localhost -U transitpulse -d transitpulse -c "CREATE DATABASE transitpulse_test;"
+          PGPASSWORD=transitpulse psql -h 127.0.0.1 -U transitpulse -d transitpulse -c "CREATE DATABASE transitpulse_test;"
           pnpm exec prisma migrate deploy
           pnpm test
 
