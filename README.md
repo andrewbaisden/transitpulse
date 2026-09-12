@@ -31,7 +31,7 @@ and disruption context on top of live service data, not just "next train in
 
 ## What this is (and isn't)
 
-TransitPulse is being built as a portfolio-grade, AI-assisted engineering
+TransitPulse is being built as an, AI-assisted engineering
 project demonstrating a real provider-abstracted data platform: external
 ingestion, a provider-neutral domain model, geospatial/realtime features,
 historical analytics, and production engineering — not a Citymapper clone,
@@ -54,22 +54,22 @@ the same pipeline in a later phase without a domain rewrite.
 
 ## Tech stack
 
-| Area | Choice |
-|---|---|
-| Framework | Next.js 16 (App Router), React 19, TypeScript (strict) |
-| Styling | Tailwind CSS v4, shadcn/ui (Radix) |
-| Validation | Zod (provider boundary + env) |
-| Client state | Zustand (live status overrides via SSE — see DECISIONS.md ADR-021) |
-| Server-fetched state | TanStack Query (search-as-you-type only) |
-| Forms | React Hook Form (installed for the fixed target stack; unwired until a real form exists — see DECISIONS.md) |
-| Database | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`) |
-| Map | Leaflet + OpenStreetMap raster tiles (no API key — see DECISIONS.md ADR-017) |
-| Jobs / realtime | BullMQ + Redis, SSE for browser push (ADR-021) |
-| Observability | Sentry (`@sentry/nextjs`) + PostHog (`posthog-js`), both inert until real credentials are set (ADR-026) |
-| Lint/format | Biome |
-| Git hooks | Husky + lint-staged |
-| Testing | Vitest, React Testing Library, Playwright |
-| CI | GitHub Actions |
+| Area                 | Choice                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Framework            | Next.js 16 (App Router), React 19, TypeScript (strict)                                                      |
+| Styling              | Tailwind CSS v4, shadcn/ui (Radix)                                                                          |
+| Validation           | Zod (provider boundary + env)                                                                               |
+| Client state         | Zustand (live status overrides via SSE — see DECISIONS.md ADR-021)                                          |
+| Server-fetched state | TanStack Query (search-as-you-type only)                                                                    |
+| Forms                | React Hook Form (installed for the fixed target stack; unwired until a real form exists — see DECISIONS.md) |
+| Database             | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`)                                                                |
+| Map                  | Leaflet + OpenStreetMap raster tiles (no API key — see DECISIONS.md ADR-017)                                |
+| Jobs / realtime      | BullMQ + Redis, SSE for browser push (ADR-021)                                                              |
+| Observability        | Sentry (`@sentry/nextjs`) + PostHog (`posthog-js`), both inert until real credentials are set (ADR-026)     |
+| Lint/format          | Biome                                                                                                       |
+| Git hooks            | Husky + lint-staged                                                                                         |
+| Testing              | Vitest, React Testing Library, Playwright                                                                   |
+| CI                   | GitHub Actions                                                                                              |
 
 Redis and BullMQ were installed in Phase 10 (ADR-021); Better Auth
 (self-hosted, not a third-party account provider) was installed in Phase
@@ -91,18 +91,18 @@ Copy `.env.example` to `.env` first if it doesn't already exist locally.
 
 ### Environment variables
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `DATABASE_URL` | yes | Postgres connection string |
-| `NODE_ENV` | yes (defaults to `development`) | |
-| `NEXT_PUBLIC_APP_NAME` | yes | Display name, client-exposed |
-| `TFL_APP_KEY` | only for `pnpm db:sync:tfl` and any page reading a `source: "tfl"` stop's arrivals | TfL Unified API key — get one at [api-portal.tfl.gov.uk](https://api-portal.tfl.gov.uk) |
-| `REDIS_URL` | yes | Redis connection string (BullMQ + SSE pub/sub — ADR-021) |
-| `BETTER_AUTH_SECRET` | yes | Signs session cookies — generate your own, see `.env.example` |
-| `BETTER_AUTH_URL` | yes (defaults to `http://localhost:3000`) | Base URL Better Auth issues cookies/callbacks against |
-| `NEXT_PUBLIC_SENTRY_DSN` | no | Enables Sentry error reporting when set — inert (no-op) otherwise. See DECISIONS.md ADR-026 |
-| `NEXT_PUBLIC_POSTHOG_KEY` | no | Enables PostHog analytics when set — inert otherwise |
-| `NEXT_PUBLIC_POSTHOG_HOST` | no (defaults to `https://us.i.posthog.com`) | Only relevant once `NEXT_PUBLIC_POSTHOG_KEY` is set |
+| Variable                   | Required                                                                           | Purpose                                                                                     |
+| -------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`             | yes                                                                                | Postgres connection string                                                                  |
+| `NODE_ENV`                 | yes (defaults to `development`)                                                    |                                                                                             |
+| `NEXT_PUBLIC_APP_NAME`     | yes                                                                                | Display name, client-exposed                                                                |
+| `TFL_APP_KEY`              | only for `pnpm db:sync:tfl` and any page reading a `source: "tfl"` stop's arrivals | TfL Unified API key — get one at [api-portal.tfl.gov.uk](https://api-portal.tfl.gov.uk)     |
+| `REDIS_URL`                | yes                                                                                | Redis connection string (BullMQ + SSE pub/sub — ADR-021)                                    |
+| `BETTER_AUTH_SECRET`       | yes                                                                                | Signs session cookies — generate your own, see `.env.example`                               |
+| `BETTER_AUTH_URL`          | yes (defaults to `http://localhost:3000`)                                          | Base URL Better Auth issues cookies/callbacks against                                       |
+| `NEXT_PUBLIC_SENTRY_DSN`   | no                                                                                 | Enables Sentry error reporting when set — inert (no-op) otherwise. See DECISIONS.md ADR-026 |
+| `NEXT_PUBLIC_POSTHOG_KEY`  | no                                                                                 | Enables PostHog analytics when set — inert otherwise                                        |
+| `NEXT_PUBLIC_POSTHOG_HOST` | no (defaults to `https://us.i.posthog.com`)                                        | Only relevant once `NEXT_PUBLIC_POSTHOG_KEY` is set                                         |
 
 ### Database
 
