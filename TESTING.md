@@ -96,11 +96,28 @@ during mount/interaction, and jsdom doesn't implement them.
 
 `.github/workflows/ci.yml`:
 
-1. `lint-test-build` job (blocking): install → typecheck → Biome →
-   `prisma migrate deploy` + seed the dev DB → create + migrate
-   `transitpulse_test` → `pnpm test` → `pnpm build`.
-2. `e2e` job (**non-blocking**, `continue-on-error: true`): migrate + seed
-   → install Playwright's Chromium → `pnpm test:e2e`.
+1. `lint-test-build` job (blocking): install → `prisma generate` +
+   `next typegen` → typecheck → Biome → `prisma migrate deploy` + seed the
+   dev DB → create + migrate `transitpulse_test` → `pnpm test` →
+   `pnpm build`.
+2. `e2e` job (**non-blocking**, `continue-on-error: true`): install →
+   `prisma generate` → migrate + seed → install Playwright's Chromium →
+   `pnpm test:e2e`.
+
+**The two generate steps are load-bearing, not boilerplate.** `prisma
+generate`'s output (`src/generated/prisma`, a custom path —
+`prisma/schema.prisma`'s `generator client` block) and `next typegen`'s
+output (`.next/types`, referenced by the committed `next-env.d.ts`) are
+both gitignored, since they're regenerated locally every time `prisma
+migrate dev`/`next dev`/`next build` runs. A fresh CI checkout has
+neither until something generates them — every CI run from Phase 7
+through Phase 14 failed on exactly this (`Cannot find module
+'@/generated/prisma/client'` cascading into dozens of implicit-`any`
+typecheck errors, plus a separate missing-`LayoutProps` error from the
+uninitialized `.next/types`), because no step ever generated them. Fixed
+in the Phase 15 cleanup — if either generator's output path or invocation
+ever changes, re-verify CI still generates it before relying on a green
+run.
 
 **Follow-up**: make the `e2e` job blocking once it's proven stable in CI
 for a run or two. It starts non-blocking per the project's own guidance on

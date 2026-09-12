@@ -45,6 +45,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # prisma generate's custom output path (prisma/schema.prisma ->
+      # src/generated/prisma) is gitignored, and next typegen's route/layout
+      # types (.next/types) are gitignored too — both are produced locally
+      # by running dev/build/generate at least once, but a fresh CI
+      # checkout has neither, so both must be generated explicitly before
+      # anything (typecheck, seed) imports them.
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      - name: Generate Next.js route types
+        run: pnpm exec next typegen
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -99,6 +111,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
 
       - name: Apply migrations and seed
         run: |
