@@ -2,6 +2,9 @@
 
 ## Status
 
+Product scope, data sources, the stack, and the phase-by-phase record are
+in [SPECIFICATION.md](./SPECIFICATION.md).
+
 This describes the system as built through **Phase 15** (static network
 explorer over demo data, a real `TflProvider` reachable via
 `pnpm db:sync:tfl` — ADR-014 —, live arrival boards fetched per-request
@@ -229,6 +232,6 @@ the SSE route specifically moved off it.
 | 14 | ✅ Auth (Better Auth, self-hosted), `User`/`Favourite`, personalisation (ADR-025) |
 | 15 | ✅ Sentry + PostHog (inert by default), accessibility/security hardening pass, documented deployment target (ADR-026/ADR-027) |
 
-Full detail lives in the project brief this repo was scoped from, not
-duplicated here — this table exists so the current architecture's
-extension points are visible at a glance.
+The phase narrative is in [SPECIFICATION.md](./SPECIFICATION.md). This
+table exists so the current architecture's extension points are visible
+at a glance.

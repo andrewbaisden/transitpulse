@@ -81,7 +81,7 @@ without deciding its provenance story.
 ## Dependency policy
 
 Justify every new dependency against an actual Phase 1-3 need — see the
-stack table in README.md and the "explicitly not installed" list in
+stack table in SPECIFICATION.md and the "explicitly not installed" list in
 DECISIONS.md. Don't add Redis/BullMQ, an auth provider, or a map library
 ahead of the phase that needs them.
 
